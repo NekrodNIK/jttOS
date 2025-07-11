@@ -1,5 +1,6 @@
+const vga = @import("vga.zig");
+const std = @import("std");
+
 export fn kmain() callconv(.C) void {
-    var buffer = @as([*]volatile u8, @ptrFromInt(0xB8000));
-    buffer[0] = 'H';
-    buffer[1] = 15;
+    vga.print("Hello VGA!");
 }

@@ -8,7 +8,7 @@ stack: align 16, resb STACK_SIZE
 
 section .text
 _start:
-    mov esp, [stack+STACK_SIZE-1]
+    mov esp, stack+STACK_SIZE
     mov ebp, esp
     call kmain
     hlt

@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) !void {
         .name = "kernel.elf",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
-        .optimize = .ReleaseSmall,
+        .optimize = b.standardOptimizeOption(.{}),
     });
 
     addNasmFiles(exe, &.{ "src/entry.nasm", "src/multiboot.nasm" });
