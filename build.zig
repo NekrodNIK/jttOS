@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
         .os_tag = .freestanding,
@@ -8,46 +8,29 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "kernel",
+        .name = "kernel.elf",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = .ReleaseSmall,
     });
 
-    const nasm = b.addSystemCommand(&.{ "nasm", "-felf32" });
-    const nasm_obj = nasm.addPrefixedOutputFileArg("-o", "multiboot.o");
-    nasm.addFileArg(b.path("src/multiboot.nasm"));
-    exe.addObjectFile(nasm_obj);
-
+    addNasmFiles(exe, &.{ "src/entry.nasm", "src/multiboot.nasm" });
     exe.setLinkerScript(b.path("src/linker.ld"));
     b.installArtifact(exe);
 
-    // // This declares intent for the executable to be installed into the
-    // // standard location when the user invokes the "install" step (the default
-    // // step when running `zig build`).
+    const make_iso_step = b.step("iso", "Create a bootable ISO image");
+    make_iso_step.makeFn = makeISO;
+    make_iso_step.dependOn(b.getInstallStep());
 
-    // // This *creates* a Run step in the build graph, to be executed when another
-    // // step is evaluated that depends on it. The next line below will establish
-    // // such a dependency.
-    // const run_cmd = b.addRunArtifact(exe);
-
-    // // By making the run step depend on the install step, it will be run from the
-    // // installation directory rather than directly from within the cache directory.
-    // // This is not necessary, however, if the application depends on other installed
-    // // files, this ensures they will be present and in the expected location.
-    // run_cmd.step.dependOn(b.getInstallStep());
+    const run_step = b.step("run", "Run with qemu emulator");
+    run_step.makeFn = run;
+    run_step.dependOn(make_iso_step);
 
     // // This allows the user to pass arguments to the application in the build
     // // command itself, like this: `zig build run -- arg1 arg2 etc`
     // if (b.args) |args| {
     //     run_cmd.addArgs(args);
     // }
-
-    // // This creates a build step. It will be visible in the `zig build --help` menu,
-    // // and can be selected like this: `zig build run`
-    // // This will evaluate the `run` step rather than the default, which is "install".
-    // const run_step = b.step("run", "Run the app");
-    // run_step.dependOn(&run_cmd.step);
 
     // // Creates a step for unit testing. This only builds the test executable
     // // but does not run it.
@@ -69,4 +52,59 @@ pub fn build(b: *std.Build) void {
     // const test_step = b.step("test", "Run unit tests");
     // test_step.dependOn(&run_lib_unit_tests.step);
     // test_step.dependOn(&run_exe_unit_tests.step);
+}
+
+fn addNasmFiles(compile: *std.Build.Step.Compile, files: []const []const u8) void {
+    const b = compile.step.owner;
+
+    for (files) |file| {
+        std.debug.assert(!std.fs.path.isAbsolute(file));
+        const out = b.fmt("{s}.o", .{std.mem.sliceTo(file, '.')});
+
+        const nasm = b.addSystemCommand(&.{ "nasm", "-felf32" });
+        const obj = nasm.addPrefixedOutputFileArg("-o", out);
+        nasm.addFileArg(b.path(file));
+        compile.addObjectFile(obj);
+    }
+}
+
+fn makeISO(step: *std.Build.Step, opts: std.Build.Step.MakeOptions) !void {
+    _ = step;
+    _ = opts;
+    const cwd = std.fs.cwd();
+
+    try cwd.makePath("iso/boot/grub");
+    var iso_dir = try cwd.openDir("iso", .{});
+
+    try cwd.copyFile("src/grub.cfg", iso_dir, "boot/grub/grub.cfg", .{});
+    try cwd.copyFile("zig-out/bin/kernel.elf", iso_dir, "boot/kernel.elf", .{});
+
+    var mkrescue = std.process.Child.init(&.{
+        "grub2-mkrescue",
+        "-o",
+        "zig-out/os.iso",
+        "iso",
+    }, std.heap.page_allocator);
+
+    try mkrescue.spawn();
+    const term = try mkrescue.wait();
+    try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
+
+    iso_dir.close();
+    try cwd.deleteTree("iso");
+}
+
+fn run(step: *std.Build.Step, opts: std.Build.Step.MakeOptions) !void {
+    _ = step;
+    _ = opts;
+
+    var qemu = std.process.Child.init(&.{
+        "qemu-system-i386",
+        "-cdrom",
+        "zig-out/os.iso",
+    }, std.heap.page_allocator);
+
+    try qemu.spawn();
+    const term = try qemu.wait();
+    try std.testing.expectEqual(term, std.process.Child.Term{ .Exited = 0 });
 }
