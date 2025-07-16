@@ -12,9 +12,8 @@ const LOGO =
 
 export fn kmain() callconv(.C) void {
     vga.disable_cursor();
-
     vga.setFgColor(.white);
-    vga.setBgColor(.black);
+    vga.setBgColor(.blue);
 
     vga.clear();
     vga.print(LOGO);
