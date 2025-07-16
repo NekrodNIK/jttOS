@@ -1,3 +1,5 @@
+const ports = @import("ports.zig");
+
 const WIDTH = 80;
 const HEIGHT = 25;
 const SIZE = WIDTH * HEIGHT;
@@ -71,4 +73,9 @@ pub fn clear() void {
         .fg_color = fg_color,
         .bg_color = bg_color,
     });
+}
+
+pub fn disable_cursor() void {
+    ports.outb(0x3D4, 0x0A);
+    ports.outb(0x3D5, 0x20);
 }
