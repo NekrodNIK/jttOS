@@ -26,7 +26,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = b.standardOptimizeOption(.{}),
     });
 
-    addNasmFiles(exe, &.{ "src/entry.nasm", "src/multiboot.nasm" });
+    addNasmFiles(exe, &.{ "src/multiboot/entry.nasm", "src/multiboot/header.nasm" });
     exe.setLinkerScript(b.path("src/linker.ld"));
     b.installArtifact(exe);
 
@@ -37,33 +37,6 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run with qemu emulator");
     run_step.makeFn = run;
     run_step.dependOn(make_iso_step);
-
-    // // This allows the user to pass arguments to the application in the build
-    // // command itself, like this: `zig build run -- arg1 arg2 etc`
-    // if (b.args) |args| {
-    //     run_cmd.addArgs(args);
-    // }
-
-    // // Creates a step for unit testing. This only builds the test executable
-    // // but does not run it.
-    // const lib_unit_tests = b.addTest(.{
-    //     .root_module = lib_mod,
-    // });
-
-    // const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    // const exe_unit_tests = b.addTest(.{
-    //     .root_module = exe_mod,
-    // });
-
-    // const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // // Similar to creating the run step earlier, this exposes a `test` step to
-    // // the `zig build --help` menu, providing a way for the user to request
-    // // running the unit tests.
-    // const test_step = b.step("test", "Run unit tests");
-    // test_step.dependOn(&run_lib_unit_tests.step);
-    // test_step.dependOn(&run_exe_unit_tests.step);
 }
 
 fn addNasmFiles(compile: *std.Build.Step.Compile, files: []const []const u8) void {
@@ -88,7 +61,7 @@ fn makeISO(step: *std.Build.Step, opts: std.Build.Step.MakeOptions) !void {
     try cwd.makePath("iso/boot/grub");
     var iso_dir = try cwd.openDir("iso", .{});
 
-    try cwd.copyFile("src/grub.cfg", iso_dir, "boot/grub/grub.cfg", .{});
+    try cwd.copyFile("grub.cfg", iso_dir, "boot/grub/grub.cfg", .{});
     try cwd.copyFile("zig-out/bin/kernel.elf", iso_dir, "boot/kernel.elf", .{});
 
     var mkrescue = std.process.Child.init(&.{
@@ -112,6 +85,8 @@ fn run(step: *std.Build.Step, opts: std.Build.Step.MakeOptions) !void {
 
     var qemu = std.process.Child.init(&.{
         "qemu-system-i386",
+        "-boot",
+        "order=d",
         "-cdrom",
         "zig-out/os.iso",
     }, std.heap.page_allocator);
