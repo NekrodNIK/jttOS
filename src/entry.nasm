@@ -10,5 +10,6 @@ section .text
 _start:
     mov esp, stack+STACK_SIZE
     mov ebp, esp
+    
     call kmain
     hlt

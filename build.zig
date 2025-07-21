@@ -14,7 +14,6 @@ pub fn build(b: *std.Build) !void {
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
         .os_tag = .freestanding,
-        .abi = .none,
         .cpu_features_sub = disabled_features,
         .cpu_features_add = enabled_features,
     });
@@ -26,7 +25,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = b.standardOptimizeOption(.{}),
     });
 
-    addNasmFiles(exe, &.{ "src/multiboot/entry.nasm", "src/multiboot/header.nasm" });
+    addNasmFiles(exe, &.{ "src/entry.nasm", "src/multiboot/header.nasm" });
     exe.setLinkerScript(b.path("src/linker.ld"));
     b.installArtifact(exe);
 
