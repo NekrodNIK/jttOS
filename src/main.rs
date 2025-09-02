@@ -2,10 +2,12 @@
 #![no_main]
 
 mod ports;
+mod uart;
 mod vga;
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use uart::Uart;
 use vga::Vga;
 
 const LOGO: &'static str = r"   _ _   _    ___  ____
@@ -22,6 +24,12 @@ pub extern "C" fn kmain() -> ! {
     vga.clear();
 
     write!(vga, "{}", LOGO).unwrap();
+
+    let mut uart = Uart::new(0x3f8);
+
+    loop {
+        write!(uart, "{}", "Hello").unwrap();
+    }
 
     loop {}
 }

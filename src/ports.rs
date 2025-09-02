@@ -5,7 +5,7 @@ use core::arch::asm;
 pub unsafe fn outb(port: u16, value: u8) {
     unsafe {
         asm!(
-            "outb dx, al",
+            "out dx, al",
             in("al") value,
             in("dx") port,
         )
@@ -15,7 +15,7 @@ pub unsafe fn outb(port: u16, value: u8) {
 pub unsafe fn outw(port: u16, value: u16) {
     unsafe {
         asm!(
-            "outw dx, ax",
+            "out dx, ax",
             in("ax") value,
             in("dx") port,
         );
@@ -27,7 +27,7 @@ pub unsafe fn inb(port: u16) -> u8 {
 
     unsafe {
         asm!(
-            "inb dx, al",
+            "in al, dx",
             out("al") result,
             in("dx") port,
         );
@@ -40,7 +40,7 @@ pub unsafe fn inw(port: u16) -> u16 {
 
     unsafe {
         asm!(
-            "inb dx, ax",
+            "in ax, dx",
             out("ax") result,
             in("dx") port,
         );

@@ -18,7 +18,7 @@ struct Symbol {
 
 impl Symbol {
     pub fn new() -> Self {
-        return Self { code: 0, colors: 0 };
+        Self { code: 0, colors: 0 }
     }
 }
 
@@ -29,10 +29,10 @@ struct Position {
 
 impl<'a> Vga<'a> {
     pub fn new() -> Self {
-        return Self {
+        Self {
             ptr: unsafe { slice::from_raw_parts_mut(0xb8000 as *mut Symbol, WIDTH * HEIGHT) },
             pos: Position { x: 0, y: 0 },
-        };
+        }
     }
 
     pub fn clear(&mut self) {

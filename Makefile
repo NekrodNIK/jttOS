@@ -5,7 +5,7 @@ build:
 	
 iso: build
 	mkdir -p iso/boot/grub/
-	cp src/grub.cfg iso/boot/grub/grub.cfg
+	cp grub.cfg iso/boot/grub/grub.cfg
 	cp target/i386/debug/kernel iso/boot/kernel.elf
 	grub2-mkrescue iso -o os.iso
 
