@@ -1,36 +1,27 @@
 #![no_std]
 #![no_main]
 
+mod ports;
 mod vga;
 
+use core::fmt::Write;
 use core::panic::PanicInfo;
 use vga::Vga;
+
+const LOGO: &'static str = r"   _ _   _    ___  ____
+  (_) |_| |_ / _ \/ ___| 
+  | | __| __| | | \___ \ 
+  | | |_| |_| |_| |___) |
+  / |\__|\__|\___/|____/ 
+|__/
+";
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
     let mut vga = Vga::new();
     vga.clear();
 
-    let mut i = 0;
-
-    let mut print = |c| {
-        vga[i] = c as u8;
-        vga[i + 1] = 0xf;
-        i += 2;
-    };
-
-    print('H');
-    print('e');
-    print('l');
-    print('l');
-    print('o');
-    print(' ');
-    print('W');
-    print('o');
-    print('r');
-    print('l');
-    print('d');
-    print('!');
+    write!(vga, "{}", LOGO).unwrap();
 
     loop {}
 }

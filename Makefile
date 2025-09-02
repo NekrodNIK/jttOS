@@ -1,4 +1,4 @@
-all: build iso run clean
+all: build iso clean run
 
 build:
 	cargo build
@@ -13,4 +13,5 @@ clean: iso
 	rm iso -r
 
 run:
+	qemu-system-i386 -cdrom os.iso
 	
