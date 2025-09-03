@@ -13,5 +13,5 @@ clean: iso
 	rm iso -r
 
 run:
-	qemu-system-i386 -cdrom os.iso
+	qemu-system-i386 -cdrom os.iso -nographic
 	
