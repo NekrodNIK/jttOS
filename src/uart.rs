@@ -16,8 +16,8 @@ impl Uart {
             outb(self.port + 1, 0x00);
             // Enable DLAB
             outb(self.port + 3, 0x80);
-            // Set baudrate 38400
-            outb(self.port + 0, 0x03); // low_byte
+            // Set baudrate 115200
+            outb(self.port + 0, 0x01); // low_byte
             outb(self.port + 1, 0x00); // high_byte
             // Disable DLAB and set mode 8N1
             outb(self.port + 3, 0x03);
