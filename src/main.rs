@@ -26,10 +26,11 @@ pub extern "C" fn kmain() -> ! {
     write!(vga, "{}", LOGO).unwrap();
 
     let mut uart = Uart::new(0x3f8);
-
-    loop {
-        write!(uart, "{}", "Hello").unwrap();
+    unsafe {
+        uart.init();
     }
+
+    write!(uart, "{}", "\x1b[31mHello\n").unwrap();
 
     loop {}
 }

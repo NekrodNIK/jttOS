@@ -1,18 +1,11 @@
 use super::ports::{inb, outb};
 use core::fmt;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BlockError;
-
 pub struct Uart {
     port: u16,
 }
 
 impl Uart {
-    fn base_port(&self) {
-        self.port;
-    }
-
     pub fn new(port: u16) -> Self {
         Self { port }
     }
@@ -38,16 +31,14 @@ impl Uart {
     }
 
     fn send(&mut self, data: u8) {
-        while self.try_send(data).is_err() {
-            core::hint::spin_loop();
-        }
+        while self.try_send(data).is_err() {}
     }
 
-    fn try_send(&mut self, data: u8) -> Result<(), BlockError> {
+    fn try_send(&mut self, data: u8) -> Result<(), ()> {
         let is_transmit_empty = unsafe { inb(self.port + 5) & 0x20 };
 
         if is_transmit_empty == 0 {
-            return Err(BlockError);
+            return Err(());
         }
 
         unsafe {
@@ -71,7 +62,13 @@ impl fmt::Write for Uart {
     }
 
     fn write_char(&mut self, c: char) -> fmt::Result {
-        self.send(c as u8);
+        let mut buf = [0; 4];
+        c.encode_utf8(&mut buf);
+
+        for b in buf.iter() {
+            self.send(*b);
+        }
+
         Ok(())
     }
 }
