@@ -10,7 +10,7 @@ macro_rules! green {
 #[macro_export]
 macro_rules! info {
     ($dst:expr, $($arg:tt)*) => {{
-        write!($dst, "[{}] {}\n", green!("INFO"), format_args!($($arg)*));
+        write!($dst, "[{}] {}\n", green!("INFO"), format_args!($($arg)*))
     }};
 }
 

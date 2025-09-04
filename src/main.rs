@@ -5,12 +5,10 @@ mod idt;
 mod log;
 mod ports;
 mod uart;
-mod vga;
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use uart::Uart;
-use vga::Vga;
 
 const LOGO: &'static str = include_str!("logo.txt");
 
@@ -21,8 +19,8 @@ pub extern "C" fn kmain() -> ! {
         uart.init();
     }
 
-    write!(uart, "{}\n\n", LOGO);
-    log::info!(uart, "kernel loaded with multiboot2 protocol");
+    write!(uart, "{}\n\n", LOGO).unwrap();
+    log::info!(uart, "kernel loaded with multiboot2 protocol").unwrap();
 
     loop {}
 }
