@@ -21,7 +21,7 @@ pub extern "C" fn kmain() -> ! {
     }
 
     write!(uart, "{}\n\n", LOGO);
-    log::info!(uart, "the kernel was loaded by the bootloader");
+    log::info!(uart, "kernel loaded with multiboot2 protocol");
 
     loop {}
 }
