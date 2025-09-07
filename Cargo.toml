@@ -12,6 +12,7 @@ panic = "abort"
 
 [dependencies]
 paste = "1.0.15"
+seq-macro = "0.3.6"
 
 [package.metadata.build-script]
 rustc-target = "i386-unknown-none"
