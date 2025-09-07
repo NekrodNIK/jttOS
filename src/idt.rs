@@ -6,7 +6,7 @@ pub struct Idt(pub [InterruptDescriptor; 255]);
 
 impl Idt {
     pub fn new() -> Self {
-        return Self([InterruptDescriptor::default(); 255]);
+        Self([InterruptDescriptor::default(); 255])
     }
 
     pub unsafe fn load(&self) {
@@ -43,7 +43,6 @@ pub fn interrupt_handler(id: u8) {
     }
 }
 
-#[derive(Clone, Debug)]
 #[repr(C)]
 struct InterruptStackFrame {
     instruction_pointer: u32,
