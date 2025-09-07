@@ -4,6 +4,7 @@
 
 mod idt;
 mod log;
+mod pic;
 mod ports;
 mod uart;
 

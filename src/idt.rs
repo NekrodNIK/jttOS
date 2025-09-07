@@ -11,7 +11,7 @@ impl Idt {
 
         seq!(N in 0..=255 {
             obj.0[N].set_entry(paste!([<redirector N>]) as u32);
-        }); // TODO: wrap into one macro
+        });
 
         obj
     }
@@ -69,4 +69,4 @@ macro_rules! gen_redirector {
 
 seq!(N in 0..=255 {
     gen_redirector!(N);
-}); // TODO: wrap into one macro
+});
