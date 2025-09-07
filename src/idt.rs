@@ -1,10 +1,10 @@
 use core::arch::asm;
 
-pub struct Idt([IntDes; 255]);
+pub struct Idt(pub [IntDescriptor; 255]);
 
 impl Idt {
-    pub const fn new() -> Self {
-        return Self([IntDes::new(); 255]);
+    pub fn new() -> Self {
+        return Self([IntDescriptor::default(); 255]);
     }
 
     pub unsafe fn load(&self) {
@@ -16,24 +16,21 @@ impl Idt {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(packed)]
-pub struct IntDes {
-    offset1: u16,
+pub struct IntDescriptor {
+    offset_low: u16,
     selector: u16,
-    reserved: u8,
-    type_attributes: u8,
-    offset2: u16,
+    zero: u8,
+    attributes: u8,
+    offset_high: u16,
 }
 
-impl IntDes {
-    const fn new() -> Self {
-        Self {
-            offset1: 0,
-            selector: 0,
-            reserved: 0,
-            type_attributes: 0,
-            offset2: 0,
-        }
+impl IntDescriptor {
+    pub fn set_entry(&mut self, entry: fn()) {
+        let address = entry as u32;
+        self.offset_low = (address & 0xffff) as u16;
+        self.offset_high = (address >> 16) as u16;
+        self.attributes = 0x8e;
     }
 }
