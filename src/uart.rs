@@ -6,7 +6,7 @@ pub struct Uart {
 }
 
 impl Uart {
-    pub fn new(port: u16) -> Self {
+    pub const fn new(port: u16) -> Self {
         Self { port }
     }
 

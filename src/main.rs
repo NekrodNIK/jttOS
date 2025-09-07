@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 mod idt;
 mod log;
@@ -31,6 +32,14 @@ pub extern "C" fn kmain() -> ! {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    // TODO: remove creation of new uart on the same port
+    let mut uart = Uart::new(0x3f8);
+
+    let _ = match info.message().as_str() {
+        Some(message) => log::info!(uart, "panic: {}", message), // TODO: implement PANIC log level
+        None => log::info!(uart, "panic"),
+    };
+
     loop {}
 }
