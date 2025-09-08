@@ -35,7 +35,7 @@ pub extern "C" fn kmain() -> ! {
 
     log::info!(uart, "VendorID: {}", cpu_id.get_vendor()).unwrap();
 
-    loop {}
+    panic!("Nothing further");
 }
 
 #[panic_handler]
@@ -44,8 +44,8 @@ fn panic(info: &PanicInfo) -> ! {
     let mut uart = Uart::new(0x3f8);
 
     let _ = match info.message().as_str() {
-        Some(message) => log::info!(uart, "panic: {}", message), // TODO: implement PANIC log level
-        None => log::info!(uart, "panic"),
+        Some(message) => log::panic!(uart, "{}", message),
+        None => log::panic!(uart, "(No message)"),
     };
 
     loop {}
