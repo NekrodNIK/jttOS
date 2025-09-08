@@ -2,20 +2,22 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+mod cpuid;
 mod idt;
 mod log;
-mod pic;
 mod ports;
 mod uart;
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
+use cpuid::Cpuid;
 use uart::Uart;
 
 use crate::idt::Idt;
 
 const LOGO: &'static str = include_str!("logo.txt");
 
+// TODO: remove 'unwrap's -> device manager
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
     let mut uart = Uart::new(0x3f8);
@@ -28,6 +30,10 @@ pub extern "C" fn kmain() -> ! {
     unsafe { idt.load() }
 
     log::info!(uart, "idt loaded").unwrap();
+
+    let mut cpu_id = Cpuid::default(); // TODO: convert single object to device manager
+
+    log::info!(uart, "VendorID: {}", cpu_id.get_vendor()).unwrap();
 
     loop {}
 }

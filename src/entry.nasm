@@ -28,7 +28,7 @@ header_start:
     dd 8 ; size
 header_end:
 
-STACK_SIZE equ 4*1024
+STACK_SIZE equ 16*1024
 
 section .bss
 stack: align 16, resb STACK_SIZE

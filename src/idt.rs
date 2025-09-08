@@ -60,7 +60,7 @@ struct InterruptStackFrame {
 macro_rules! gen_redirector {
     ($id:literal) => {
         paste! {
-            extern "x86-interrupt" fn [<redirector $id>](_: InterruptStackFrame) {
+            unsafe extern "x86-interrupt" fn [<redirector $id>](_: InterruptStackFrame) {
                 interrupt_handler($id);
             }
         }
