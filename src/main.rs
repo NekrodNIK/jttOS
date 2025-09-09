@@ -2,15 +2,16 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-mod cpuid;
+mod cpuinfo;
 mod idt;
 mod log;
 mod ports;
 mod uart;
 
 use core::fmt::Write;
+use core::mem;
 use core::panic::PanicInfo;
-use cpuid::Cpuid;
+use cpuinfo::CpuInfo;
 use uart::Uart;
 
 use crate::idt::Idt;
@@ -31,9 +32,8 @@ pub extern "C" fn kmain() -> ! {
 
     log::info!(uart, "idt loaded").unwrap();
 
-    let mut cpu_id = Cpuid::default(); // TODO: convert single object to device manager
-
-    log::info!(uart, "VendorID: {}", cpu_id.get_vendor()).unwrap();
+    let vendor = CpuInfo::read_vendor();
+    log::info!(uart, "VendorID: {}", str::from_utf8(&vendor).unwrap()).unwrap();
 
     panic!("Nothing further");
 }
