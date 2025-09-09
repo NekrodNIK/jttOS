@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-mod cpuinfo;
+// mod cpuinfo;
 mod idt;
 mod log;
 mod ports;
@@ -11,7 +11,7 @@ mod uart;
 use core::fmt::Write;
 use core::mem;
 use core::panic::PanicInfo;
-use cpuinfo::CpuInfo;
+// use cpuinfo::CpuInfo;
 use uart::Uart;
 
 use crate::idt::Idt;
@@ -32,8 +32,8 @@ pub extern "C" fn kmain() -> ! {
 
     log::info!(uart, "idt loaded").unwrap();
 
-    let vendor = CpuInfo::read_vendor();
-    log::info!(uart, "VendorID: {}", str::from_utf8(&vendor).unwrap()).unwrap();
+    // let vendor = CpuInfo::read_vendor();
+    // log::info!(uart, "VendorID: {}", str::from_utf8(&vendor).unwrap()).unwrap();
 
     panic!("Nothing further");
 }
