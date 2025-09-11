@@ -15,3 +15,4 @@ clean: iso
 run:
 	qemu-system-i386 -cdrom os.iso -nographic
 	
+.PHONY: build iso clean run
