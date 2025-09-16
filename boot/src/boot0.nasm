@@ -77,6 +77,9 @@ read_loop:
     
     hlt
     
+; Display an error message,
+; wait press any key
+; and try reading the sector again
 error_handler:
     mov ah, 0xe
     mov si, error_msg
