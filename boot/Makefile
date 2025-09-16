@@ -9,7 +9,7 @@ build/payload.bin: /dev/urandom
 	dd if=$< of=$@ bs=1024 count=$(PAYLOAD_SIZE_KB)
 
 build/boot0.bin: src/boot0.nasm
-	$(NASM) -o $@ $< -dN=$(PAYLOAD_SECTORS)
+	$(NASM) $< -o $@ -dN=$(PAYLOAD_SECTORS)
 
 os.img: build/boot0.bin build/payload.bin
 	dd if=/dev/zero of=os.img bs=1024 count=1440
