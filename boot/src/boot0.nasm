@@ -1,5 +1,5 @@
 bits 16
-org 0x600
+org 0x7c00
 
 LIM_CYLINDER equ 80
 LIM_HEAD equ 2
@@ -17,18 +17,8 @@ entry:
     ; Save disk number (bios passed it to dl)
     push dx
 
-    ; Copy itself to address 0x600
-    mov si, 0x7c00 ; Source
-    mov di, 0x600  ; Destination
-    mov cx, 512    ; Len
-
-    rep movsb 
-
-    jmp 0:after_copy
-after_copy:
-
     ; Setting before read
-    mov ax, 0x7c0
+    mov ax, 0x7e0
     mov es, ax
     xor bx, bx
 
