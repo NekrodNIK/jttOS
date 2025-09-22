@@ -1,26 +1,26 @@
-ENTRY(_start)
+ENTRY(boot_entry)
 
 SECTIONS {
-    . = 2M;
+    . = 0x7c00;
 
-    .boot : ALIGN(4K) {
-        KEEP(*(.multiboot))
+    .boot : {
+        *(.boot);
     }
 
-    .text : ALIGN(4K) {
-        *(.text)
+    .kernel : {
+        *(.text);
+        *(.rodata);
+        *(.rodata.*);
+        *(.data);
+        *(.bss);
     }
- 
-    .rodata : ALIGN(4K) {
-        *(.rodata)
-    }
- 
-    .data : ALIGN(4K) {
-        *(.data)
-    }
- 
-    .bss : ALIGN(4K) {
-        *(COMMON)
-        *(.bss)
+
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.note.gnu.property)
+        *(.comment)
     }
 }
+
+kernel_size = SIZEOF(.kernel);
+ASSERT(kernel_size <= 200 * 1024, "kernel is too large, max 200KiB");

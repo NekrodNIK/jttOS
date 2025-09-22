@@ -3,42 +3,39 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
-    println!("cargo:rerun-if-changed=src/entry.nasm");
+    let boot_src = "src/boot/boot.nasm";
+    println!("cargo:rerun-if-changed={}", boot_src);
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let asm_file = "src/entry.nasm";
-    let obj_file = out_dir.join("entry.o");
-    let lib_file = out_dir.join("libentry.a");
+    let boot_obj = out_dir.join("boot.o");
+    let boot_lib = out_dir.join("libboot.a");
 
-    // Assemble the NASM file
     let status = Command::new("nasm")
         .arg("-f")
-        .arg("elf32") // Use 'win64' for Windows, 'macho64' for macOS
+        .arg("elf32")
         .arg("-o")
-        .arg(&obj_file)
-        .arg(asm_file)
+        .arg(boot_obj)
+        .arg(boot_src)
         .status()
         .expect("Failed to execute nasm");
 
     if !status.success() {
-        panic!("NASM assembly failed");
+        panic!("Nasm failed with status {}", status.success());
     }
 
-    // Create a static library from the object file
     let status = Command::new("ar")
         .arg("rcs")
-        .arg(&lib_file)
-        .arg(&obj_file)
+        .arg(boot_lib)
+        .arg(boot_src)
         .status()
         .expect("Failed to execute ar");
 
     if !status.success() {
-        panic!("Failed to create static library");
+        panic!("Ar failed with status {}", status.success());
     }
 
-    // Tell Cargo where to find the library
     println!("cargo:rustc-link-search=native={}", out_dir.display());
-    println!("cargo:rustc-link-lib=static=entry");
+    println!("cargo:rustc-link-lib=static=boot");
 
     let linker_script = PathBuf::from(format!("linker.ld"));
 

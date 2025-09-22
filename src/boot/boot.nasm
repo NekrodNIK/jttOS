@@ -1,10 +1,10 @@
-bits 16
-org 0x7c00
+extern kernel_size
 
 LIM_CYLINDER equ 80
 LIM_HEAD equ 2
 LIM_SECTOR equ 19
 
+bits 16
 entry:
     cli
 
@@ -22,7 +22,7 @@ entry:
     mov es, ax
     xor bx, bx
 
-    mov di, N
+    mov di, kernel_size
     
     xor dh, dh
     xor ch, ch
