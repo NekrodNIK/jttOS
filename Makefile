@@ -1,27 +1,24 @@
-NASM=nasm -fbin
-
-PAYLOAD_SIZE_KB=450
-PAYLOAD_SECTORS=$(shell echo $$(($(PAYLOAD_SIZE_KB) * 2)))
+TMP_DIR=.tmp
 
 all: clean build test
 
-build/payload.bin: /dev/urandom
-	dd if=$< of=$@ bs=1024 count=$(PAYLOAD_SIZE_KB)
+$(TMP_DIR)/kernel.elf:
+	cargo build
+	cp target/i386/debug/kernel $@
 
-build/boot0.bin: src/boot0.nasm
-	$(NASM) $< -o $@ -dN=$(PAYLOAD_SECTORS)
+$(TMP_DIR)/kernel.bin: $(TMP_DIR)/kernel.elf
+	objcopy -O binary $< $@
 
-os.img: build/boot0.bin build/payload.bin
+os.img: $(TMP_DIR)/kernel.bin
 	dd if=/dev/zero of=os.img bs=1024 count=1440
 	dd if=$< of=os.img conv=notrunc
-	dd if=$(word 2, $^) of=os.img conv=notrunc bs=512 seek=1
 
 build: os.img
 
 clean:
 	rm -f os.img
-	rm -rf build
-	mkdir build
+	rm -rf $(TMP_DIR)
+	mkdir $(TMP_DIR)
 
 test: build
 	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA

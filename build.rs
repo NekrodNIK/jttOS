@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
-    let boot_src = "src/boot/boot.nasm";
+    let boot_src = "src/boot.nasm";
     println!("cargo:rerun-if-changed={}", boot_src);
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -14,7 +14,7 @@ fn main() {
         .arg("-f")
         .arg("elf32")
         .arg("-o")
-        .arg(boot_obj)
+        .arg(&boot_obj)
         .arg(boot_src)
         .status()
         .expect("Failed to execute nasm");
@@ -25,8 +25,8 @@ fn main() {
 
     let status = Command::new("ar")
         .arg("rcs")
-        .arg(boot_lib)
-        .arg(boot_src)
+        .arg(&boot_lib)
+        .arg(&boot_obj)
         .status()
         .expect("Failed to execute ar");
 

@@ -1,11 +1,13 @@
+global boot_entry
 extern kernel_size
 
 LIM_CYLINDER equ 80
 LIM_HEAD equ 2
 LIM_SECTOR equ 19
 
+section .boot
 bits 16
-entry:
+boot_entry:
     cli
 
     ; Set segment registers and setup stack
