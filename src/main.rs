@@ -2,16 +2,17 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-// mod cpuinfo;
 mod idt;
 mod log;
 mod ports;
 mod uart;
+mod vga;
 
 use core::fmt::Write;
 use core::mem;
 use core::panic::PanicInfo;
-// use cpuinfo::CpuInfo;
+
+use crate::vga::Vga;
 use uart::Uart;
 
 use crate::idt::Idt;
@@ -21,6 +22,10 @@ const LOGO: &'static str = include_str!("logo.txt");
 // TODO: remove 'unwrap's -> device manager
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
+    let mut vga = Vga::new();
+    vga.clear();
+    write!(vga, "{}\n\n", LOGO).unwrap();
+
     let mut uart = Uart::new(0x3f8);
     unsafe { uart.init() }
 
@@ -31,9 +36,6 @@ pub extern "C" fn kmain() -> ! {
     unsafe { idt.load() }
 
     log::info!(uart, "idt loaded").unwrap();
-
-    // let vendor = CpuInfo::read_vendor();
-    // log::info!(uart, "VendorID: {}", str::from_utf8(&vendor).unwrap()).unwrap();
 
     panic!("Nothing further");
 }
