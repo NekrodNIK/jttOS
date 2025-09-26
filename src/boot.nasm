@@ -19,9 +19,6 @@ boot_entry:
     mov ds, ax
     mov ss, ax
     mov sp, 0x7c00
-    
-    ; Save disk number (bios passed it to dl)
-    push dx
 
     ; Setting before read
     mov ax, 0x7e0
