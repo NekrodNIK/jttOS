@@ -3,42 +3,32 @@ use core::slice;
 
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
+const ADDR: usize = 0xb8000;
 
+#[derive(Debug)]
 pub struct Vga<'a> {
-    ptr: &'a mut [Symbol],
-    pos: Position,
+    screen: &'a mut [Symbol],
+    x: usize,
+    y: usize,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Default, Clone, Copy)]
 #[repr(packed)]
 struct Symbol {
     code: u8,
     colors: u8,
 }
 
-impl Symbol {
-    pub fn new() -> Self {
-        Self { code: 0, colors: 0 }
-    }
-}
-
-struct Position {
-    x: usize,
-    y: usize,
-}
-
 impl<'a> Vga<'a> {
     pub fn new() -> Self {
-        Self {
-            ptr: unsafe { slice::from_raw_parts_mut(0xb8000 as *mut Symbol, WIDTH * HEIGHT) },
-            pos: Position { x: 0, y: 0 },
-        }
+        let screen = unsafe { slice::from_raw_parts_mut(ADDR as *mut Symbol, WIDTH * HEIGHT) };
+        Self { screen, x: 0, y: 0 }
     }
 
     pub fn clear(&mut self) {
-        self.ptr.fill(Symbol {
+        self.screen.fill(Symbol {
             code: 0,
-            colors: 0xf | 0x1 << 4,
+            colors: 0xf,
         });
     }
 }
@@ -57,40 +47,22 @@ impl<'a> fmt::Write for Vga<'a> {
 
     fn write_char(&mut self, c: char) -> fmt::Result {
         if c == '\n' {
-            self.pos.x = 0;
-            self.pos.y = (self.pos.y + 1) % HEIGHT;
+            self.x = 0;
+            self.y = (self.y + 1) % HEIGHT;
             return Ok(());
         }
 
-        let mut s = Symbol::new();
+        let mut s = Symbol::default();
         s.code = c as u8;
-        s.colors = 0xf | 0x1 << 4;
+        s.colors = 0xf;
 
-        self.ptr[self.pos.y * WIDTH + self.pos.x] = s;
+        self.screen[self.y * WIDTH + self.x] = s;
 
-        self.pos.x += 1;
-        self.pos.y += self.pos.x / WIDTH;
-        self.pos.x %= WIDTH;
-        self.pos.y %= HEIGHT;
+        self.x += 1;
+        self.y += self.x / WIDTH;
+        self.x %= WIDTH;
+        self.y %= HEIGHT;
 
         Ok(())
     }
 }
-// const Color = enum(u4) {
-//     black = 0x0,
-//     blue = 0x1,
-//     green = 0x2,
-//     cyan = 0x3,
-//     red = 0x4,
-//     magenta = 0x5,
-//     brown = 0x6,
-//     light_gray = 0x7,
-//     dark_gray = 0x8,
-//     light_blue = 0x9,
-//     light_green = 0xa,
-//     light_cyan = 0xb,
-//     light_red = 0xc,
-//     light_magenta = 0xd,
-//     yellow = 0xe,
-//     white = 0xf,
-// };
