@@ -107,7 +107,7 @@ trampoline:
     mov fs, ax
     mov gs, ax
 
-    call kmain
+    jmp kmain
 
 ; ==========
 ;    DATA
