@@ -133,7 +133,7 @@ ds_desc:
     .limitLow:                dw 0xff
     .baseLow:                 dw 0
     .baseMid:                 db 0
-    .p_dpl_s_type:            db 0b1001_0001
+    .p_dpl_s_type:            db 0b1001_0010
     .g_db_l_avl_limitHigh:    db 0b1100_1111
     .baseHigh:                db 0
 
