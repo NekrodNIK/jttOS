@@ -126,7 +126,7 @@ cs_desc:
     .baseLow:                 dw 0
     .baseMid:                 db 0
     .p_dpl_s_type:            db 0b1001_1010
-    .g_dl_l_avl_limitHigh:    db 0b1100_1111
+    .g_dp_l_avl_limitHigh:    db 0b1100_1111
     .baseHigh:                db 0
 
 ds_desc:
@@ -134,7 +134,7 @@ ds_desc:
     .baseLow:                 dw 0
     .baseMid:                 db 0
     .p_dpl_s_type:            db 0b1001_0001
-    .g_dl_l_avl_limitHigh:    db 0b1100_1111
+    .g_dp_l_avl_limitHigh:    db 0b1100_1111
     .baseHigh:                db 0
 
 gdt_desc:
