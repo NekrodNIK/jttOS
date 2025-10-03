@@ -1,11 +1,13 @@
 #![no_std]
 #![no_main]
 
+mod cpuid;
 mod vga;
 
 use core::fmt::Write;
 use core::panic::PanicInfo;
 
+use crate::cpuid::get_vendor_id;
 use crate::vga::Vga;
 
 const LOGO: &'static str = include_str!("logo.txt");
@@ -15,10 +17,14 @@ pub extern "C" fn kmain() -> ! {
     let mut vga = Vga::new();
     vga.clear();
     write!(vga, "{}\n\n", LOGO).unwrap();
+    write!(vga, "{}\n", get_vendor_id().as_str()).unwrap();
     loop {}
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    let mut vga = Vga::new();
+    vga.clear();
+    write!(vga, "{}\n\n", "PANIC!").unwrap();
     loop {}
 }
