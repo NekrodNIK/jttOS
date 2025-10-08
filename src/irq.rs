@@ -20,10 +20,13 @@ impl<T> IrqSafe<T> {
         }
     }
 
-    pub fn lock(&self) -> IrqSafeGuard<T> {
-        self.saved_flag.set(EFlags::read().contains(EFlags::IF));
-        if self.saved_flag.get() {
-            unsafe { cli() }
+    pub fn lock(&self) -> IrqSafeGuard<'_, T> {
+        if self.lock_count.get() == 0 || self.saved_flag.get() {
+            self.saved_flag.set(EFlags::read().contains(EFlags::IF));
+
+            if self.saved_flag.get() {
+                unsafe { cli() }
+            }
         }
 
         self.lock_count.update(|x| x + 1);
@@ -31,7 +34,11 @@ impl<T> IrqSafe<T> {
     }
 
     pub fn unlock(&self) {
-        self.lock_count.update(|x| x - 1);
+        self.lock_count.update(|x| x.saturating_sub(1));
+        if self.lock_count.get() == 0 {
+            panic!("IrqSafe: unlock without lock");
+        }
+
         if self.lock_count.get() == 0 && self.saved_flag.get() {
             unsafe { sti() }
         }
@@ -68,5 +75,11 @@ impl<T> Deref for IrqSafeGuard<'_, T> {
 impl<T> DerefMut for IrqSafeGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         return unsafe { &mut *self.lock.data.get() };
+    }
+}
+
+impl<T: Default> Default for IrqSafe<T> {
+    fn default() -> Self {
+        Self::new(T::default())
     }
 }
