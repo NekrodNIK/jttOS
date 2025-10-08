@@ -21,7 +21,7 @@ impl<T> IrqSafe<T> {
     }
 
     pub fn lock(&self) -> IrqSafeGuard<'_, T> {
-        if self.lock_count.get() == 0 || self.saved_flag.get() {
+        if self.lock_count.get() == 0 || !self.saved_flag.get() {
             self.saved_flag.set(EFlags::read().contains(EFlags::IF));
 
             if self.saved_flag.get() {

@@ -2,6 +2,7 @@
 #![no_main]
 
 mod irq;
+mod logs;
 mod utils;
 mod vga;
 
