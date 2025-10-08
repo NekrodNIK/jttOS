@@ -16,6 +16,7 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+bitflags = "2.9.4"
 paste = "1.0.15"
 seq-macro = "0.3.6"
 

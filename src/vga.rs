@@ -20,7 +20,7 @@ struct Symbol {
 }
 
 impl<'a> Vga<'a> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         let screen = unsafe { slice::from_raw_parts_mut(ADDR as *mut Symbol, WIDTH * HEIGHT) };
         Self { screen, x: 0, y: 0 }
     }
@@ -30,6 +30,8 @@ impl<'a> Vga<'a> {
             code: 0,
             colors: 0xf,
         });
+        self.x = 0;
+        self.y = 0;
     }
 }
 
