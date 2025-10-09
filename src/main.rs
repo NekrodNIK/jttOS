@@ -8,11 +8,16 @@ mod io;
 mod irq;
 mod utils;
 
+use alloc::alloc::alloc;
+use alloc::boxed::Box;
+use alloc::slice;
 use alloc::string::ToString;
 
 use crate::io::Write;
 use crate::utils::{cli, tsc_sleep};
+use core::alloc::Layout;
 use core::panic::PanicInfo;
+use core::ptr::slice_from_raw_parts;
 
 const LOGO: &'static str = include_str!("logo.txt");
 
@@ -39,9 +44,34 @@ pub extern "C" fn kmain() -> ! {
 
     // panic!("Some panic message");
 
-    // let mut string = "Message".to_string();
+    // let mut string = "one".to_string();
+    // console::info!("Original: \"{}\", size: {} bytes", string, string.len());
     // string += " + another";
-    // console::info!("{}, size: {}", string, string.len());
+    // console::info!("After concat: \"{}\", size: {} bytes", string, string.len());
+
+    // let layout = Layout::from_size_align(1, 8).unwrap();
+
+    // let ptr1;
+    // let ptr2;
+    // unsafe {
+    //     ptr1 = alloc(layout);
+    //     ptr2 = alloc(layout);
+
+    //     *ptr1 = 0x1;
+    //     *ptr2 = 0x2;
+
+    //     console::info!(
+    //         "ptr1, memory location: {:x}, value {:?}",
+    //         ptr1 as usize,
+    //         slice::from_raw_parts(ptr1, 16)
+    //     );
+
+    //     console::info!(
+    //         "ptr2, memory location: {:x}, value {:x?}",
+    //         ptr2 as usize,
+    //         slice::from_raw_parts(ptr2, 16)
+    //     );
+    // };
 
     loop {}
 }

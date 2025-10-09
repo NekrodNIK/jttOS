@@ -15,13 +15,13 @@ macro_rules! red {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
-        print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
+        crate::console::print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
     }};
 }
 
 #[macro_export]
 macro_rules! println {
-    ($($arg:tt)*) => {{ print!("{}\n", format_args!($($arg)*)) }};
+    ($($arg:tt)*) => {{ crate::console::print!("{}\n", format_args!($($arg)*)) }};
 }
 
 #[macro_export]
