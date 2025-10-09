@@ -40,8 +40,8 @@ pub extern "C" fn kmain() -> ! {
     // panic!("Some panic message");
 
     // let mut string = "Message".to_string();
-    // string += " + another message";
-    // console::info!("{}", string);
+    // string += " + another";
+    // console::info!("{}, size: {}", string, string.len());
 
     loop {}
 }
