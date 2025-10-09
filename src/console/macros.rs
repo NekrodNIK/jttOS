@@ -14,7 +14,7 @@ macro_rules! red {
 
 #[macro_export]
 macro_rules! info {
-    ($dst:expr, $($arg:tt)*) => {{
+    ($($arg:tt)*) => {{
         print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
     }};
 }

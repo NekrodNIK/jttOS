@@ -8,6 +8,8 @@ mod io;
 mod irq;
 mod utils;
 
+use alloc::string::ToString;
+
 use crate::io::Write;
 use crate::utils::{cli, tsc_sleep};
 use core::panic::PanicInfo;
@@ -25,18 +27,21 @@ pub extern "C" fn kmain() -> ! {
 
     // let mut index = 0;
     // loop {
-    //     log::info!(console, "I'm scrolling! index: {}", index).unwrap();
+    //     console::info!("I'm scrolling! index: {}", index);
     //     index += 1;
     //     tsc_sleep(20000000);
     // }
 
-    // debug_assert!("Answer to the Ultimate Question of Life, the Universe, and Everything" == "42");
+    // debug_assert_eq!(
+    //     "Answer to the Ultimate Question of Life, the Universe, and Everything",
+    //     "42"
+    // );
 
     // panic!("Some panic message");
 
     // let mut string = "Message".to_string();
     // string += " + another message";
-    // log::info!(console, "{}", string);
+    // console::info!("{}", string);
 
     loop {}
 }
