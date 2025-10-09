@@ -1,3 +1,4 @@
+use crate::io;
 use core::fmt;
 use core::slice;
 
@@ -6,8 +7,8 @@ const HEIGHT: usize = 25;
 const ADDR: usize = 0xb8000;
 
 #[derive(Debug)]
-pub struct Vga<'a> {
-    screen: &'a mut [Symbol],
+pub struct Vga {
+    screen: &'static mut [Symbol],
     x: usize,
     y: usize,
 }
@@ -19,7 +20,7 @@ struct Symbol {
     colors: u8,
 }
 
-impl<'a> Vga<'a> {
+impl Vga {
     pub const fn new() -> Self {
         let screen = unsafe { slice::from_raw_parts_mut(ADDR as *mut Symbol, WIDTH * HEIGHT) };
         Self { screen, x: 0, y: 0 }
@@ -35,35 +36,26 @@ impl<'a> Vga<'a> {
     }
 }
 
-impl<'a> fmt::Write for Vga<'a> {
-    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> fmt::Result {
-        fmt::write(self, args)
-    }
+impl io::Write for Vga {
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), io::Error> {
+        for byte in buf {
+            if *byte == b'\n' {
+                self.x = 0;
+                self.y = (self.y + 1) % HEIGHT;
+                continue;
+            }
 
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for c in s.chars() {
-            self.write_char(c)?;
+            let mut s = Symbol::default();
+            s.code = *byte;
+            s.colors = 0xf;
+
+            self.screen[self.y * WIDTH + self.x] = s;
+
+            self.x += 1;
+            self.y += self.x / WIDTH;
+            self.x %= WIDTH;
+            self.y %= HEIGHT;
         }
-        Ok(())
-    }
-
-    fn write_char(&mut self, c: char) -> fmt::Result {
-        if c == '\n' {
-            self.x = 0;
-            self.y = (self.y + 1) % HEIGHT;
-            return Ok(());
-        }
-
-        let mut s = Symbol::default();
-        s.code = c as u8;
-        s.colors = 0xf;
-
-        self.screen[self.y * WIDTH + self.x] = s;
-
-        self.x += 1;
-        self.y += self.x / WIDTH;
-        self.x %= WIDTH;
-        self.y %= HEIGHT;
 
         Ok(())
     }

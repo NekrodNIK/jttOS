@@ -1,15 +1,15 @@
 #![no_std]
 #![no_main]
 
+mod io;
 mod irq;
-mod logs;
 mod utils;
 mod vga;
 
 use core::cell::LazyCell;
-use core::fmt::Write;
 use core::panic::PanicInfo;
 
+use crate::io::Write;
 use crate::irq::IrqSafe;
 use crate::vga::Vga;
 
