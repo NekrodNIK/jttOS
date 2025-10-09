@@ -35,10 +35,10 @@ impl<T> IrqSafe<T> {
     }
 
     pub fn unlock(&self) {
-        self.lock_count.update(|x| x.saturating_sub(1));
         if self.lock_count.get() == 0 {
             panic!("IrqSafe: unlock without lock");
         }
+        self.lock_count.update(|x| x.saturating_sub(1));
 
         if self.lock_count.get() == 0 && self.saved_flag.get() {
             unsafe { sti() }

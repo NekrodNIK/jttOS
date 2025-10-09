@@ -11,9 +11,11 @@ bench = false
 
 [profile.dev]
 panic = "abort"
+opt-level = 3
 
 [profile.release]
 panic = "abort"
+opt-level = 3
 
 [dependencies]
 bitflags = "2.9.4"
