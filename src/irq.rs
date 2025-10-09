@@ -5,16 +5,8 @@ use core::{
 
 use crate::utils::{EFlags, cli, sti};
 
-// TODO: double lock protect (mark this as UB or panic)
-// FIXME:
-// UB    UB  UBUBUB
-// UB    UB  UB   UB
-// UB    UB  UBUBUB
-// UB    UB  UB   UB
-//   UBUB    UBUBUB
-
 pub struct IrqSafe<T> {
-    lock_count: Cell<usize>,
+    locked: Cell<bool>,
     saved_flag: Cell<bool>,
     data: UnsafeCell<T>,
 }
@@ -22,34 +14,53 @@ pub struct IrqSafe<T> {
 impl<T> IrqSafe<T> {
     pub const fn new(t: T) -> Self {
         Self {
-            lock_count: Cell::new(0),
+            locked: Cell::new(false),
             saved_flag: Cell::new(false),
             data: UnsafeCell::new(t),
         }
     }
 
     pub fn lock(&self) -> IrqSafeGuard<'_, T> {
-        if self.lock_count.get() == 0 || !self.saved_flag.get() {
-            self.saved_flag.set(EFlags::read().contains(EFlags::IF));
+        if let Some(guard) = self.try_lock() {
+            return guard;
+        } else {
+            panic!("IrqSafe: double lock");
+        }
+    }
 
-            if self.saved_flag.get() {
-                unsafe { cli() }
-            }
+    pub fn try_lock(&self) -> Option<IrqSafeGuard<'_, T>> {
+        if self.locked.get() {
+            return None;
         }
 
-        self.lock_count.update(|x| x + 1);
-        IrqSafeGuard::new(self)
+        self.saved_flag.set(EFlags::read().contains(EFlags::IF));
+
+        if self.saved_flag.get() {
+            unsafe { cli() }
+        }
+
+        self.locked.set(true);
+        Some(IrqSafeGuard::new(self))
     }
 
     pub fn unlock(&self) {
-        if self.lock_count.get() == 0 {
+        if self.try_unlock() == None {
             panic!("IrqSafe: unlock without lock");
         }
-        self.lock_count.update(|x| x.saturating_sub(1));
+    }
 
-        if self.lock_count.get() == 0 && self.saved_flag.get() {
+    pub fn try_unlock(&self) -> Option<()> {
+        if !self.locked.get() {
+            return None;
+        }
+
+        self.locked.set(false);
+
+        if self.saved_flag.get() {
             unsafe { sti() }
         }
+
+        Some(())
     }
 }
 

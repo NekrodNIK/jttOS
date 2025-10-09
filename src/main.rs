@@ -6,29 +6,20 @@ mod allocator;
 mod console;
 mod io;
 mod irq;
-mod log;
 mod utils;
 
-use core::cell::LazyCell;
-use core::panic::PanicInfo;
-
-use alloc::string::{String, ToString};
-
-use crate::console::Console;
 use crate::io::Write;
-use crate::irq::IrqSafe;
 use crate::utils::{cli, tsc_sleep};
+use core::panic::PanicInfo;
 
 const LOGO: &'static str = include_str!("logo.txt");
 
-static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(|| Console::new()));
-
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
-    let mut console = CONSOLE.lock();
-    console.clear();
-    write!(console, "{}\n", LOGO).unwrap();
-    log::info!(console, "{}", "Loading system...").unwrap();
+    console::clear!();
+
+    console::println!("{}", LOGO);
+    console::info!("{}", "Loading system...");
 
     // DEMO
 
@@ -53,14 +44,9 @@ pub extern "C" fn kmain() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     unsafe { cli() }
-    while let Err(_) = panic_message(info) {}
+    console::CONSOLE.try_unlock();
+    console::clear!();
+    console::println!("[{}]", red!("KERNEL PANIC"));
+    console::print!("{}", info.message());
     loop {}
-}
-
-fn panic_message(info: &PanicInfo) -> io::Result<()> {
-    let mut console = CONSOLE.lock();
-    console.clear();
-    write!(console, "[{}]\n", red!("KERNEL PANIC"))?;
-    write!(console, "{}", info.message())?;
-    Ok(())
 }
