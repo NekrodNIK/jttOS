@@ -1,5 +1,7 @@
 use core::fmt;
 
+pub type Result<T> = core::result::Result<T, Error>;
+
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -26,12 +28,12 @@ pub enum Error {
 
 // TODO: expand to buffered writers
 pub trait Write {
-    fn write_all(&mut self, buf: &[u8]) -> Result<(), Error>;
+    fn write_all(&mut self, buf: &[u8]) -> Result<()>;
 
-    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> Result<(), Error> {
+    fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> Result<()> {
         struct Adapter<'a, T: Write + ?Sized> {
             inner: &'a mut T,
-            error: Result<(), Error>,
+            error: Result<()>,
         }
 
         impl<T: Write + ?Sized> fmt::Write for Adapter<'_, T> {

@@ -6,7 +6,7 @@ mod allocator;
 mod console;
 mod io;
 mod irq;
-mod logs;
+mod log;
 mod utils;
 
 use core::cell::LazyCell;
@@ -28,13 +28,13 @@ pub extern "C" fn kmain() -> ! {
     let mut console = CONSOLE.lock();
     console.clear();
     write!(console, "{}\n", LOGO).unwrap();
-    logs::info!(console, "{}", "Loading system...");
+    log::info!(console, "{}", "Loading system...").unwrap();
 
     // DEMO
 
     // let mut index = 0;
     // loop {
-    //     logs::info!(console, "I'm scrolling! index: {}", index).unwrap();
+    //     log::info!(console, "I'm scrolling! index: {}", index).unwrap();
     //     index += 1;
     //     tsc_sleep(20000000);
     // }
@@ -45,7 +45,7 @@ pub extern "C" fn kmain() -> ! {
 
     // let mut string = "Message".to_string();
     // string += " + another message";
-    // logs::info!(console, "{}", string);
+    // log::info!(console, "{}", string);
 
     loop {}
 }
@@ -53,11 +53,14 @@ pub extern "C" fn kmain() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     unsafe { cli() }
+    while let Err(_) = panic_message(info) {}
+    loop {}
+}
 
+fn panic_message(info: &PanicInfo) -> io::Result<()> {
     let mut console = CONSOLE.lock();
     console.clear();
-    write!(console, "[{}]\n", red!("KERNEL PANIC"));
-    write!(console, "{}", info.message());
-
-    loop {}
+    write!(console, "[{}]\n", red!("KERNEL PANIC"))?;
+    write!(console, "{}", info.message())?;
+    Ok(())
 }
