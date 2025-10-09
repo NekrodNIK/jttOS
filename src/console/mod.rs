@@ -28,6 +28,8 @@ impl Console {
     }
 
     pub fn clear(&mut self) {
+        self.state.x = 0;
+        self.state.y = 0;
         self.output.clear()
     }
 }

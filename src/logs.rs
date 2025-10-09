@@ -18,11 +18,6 @@ macro_rules! info {
     }};
 }
 
-macro_rules! panic {
-    ($dst:expr, $($arg:tt)*) => {{
-        write!($dst, "[{}] {}\n", red!("PANIC"), format_args!($($arg)*))
-    }};
-}
-
+pub(crate) use green;
 pub(crate) use info;
-pub(crate) use panic;
+pub(crate) use red;
