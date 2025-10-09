@@ -3,6 +3,7 @@
 
 mod io;
 mod irq;
+mod logs;
 mod utils;
 mod vga;
 
@@ -21,14 +22,14 @@ static VGA: IrqSafe<LazyCell<Vga>> = IrqSafe::new(LazyCell::new(|| Vga::new()));
 pub extern "C" fn kmain() -> ! {
     let mut vga = VGA.lock();
     vga.clear();
-    write!(vga, "{}\n\n", LOGO).unwrap();
+    logs::info!(vga, "{}", "Loading system...");
+    write!(vga, "{}\n", LOGO).unwrap();
     loop {}
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     let mut vga = VGA.lock();
-    vga.clear();
-    write!(vga, "panic: {}", info.message()).unwrap();
+    logs::panic!(vga, "{}", info.message());
     loop {}
 }

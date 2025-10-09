@@ -5,6 +5,7 @@ use core::{
 
 use crate::utils::{EFlags, cli, sti};
 
+// TODO: double lock protect (mark this as UB or panic)
 pub struct IrqSafe<T> {
     lock_count: Cell<usize>,
     saved_flag: Cell<bool>,

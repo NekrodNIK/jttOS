@@ -65,3 +65,22 @@ pub unsafe fn cli() {
 pub unsafe fn sti() {
     unsafe { asm!("sti") }
 }
+
+pub fn rdtsc() -> u64 {
+    let high: u32;
+    let low: u32;
+
+    unsafe {
+        asm!("rdtsc", out("edx") high, out("eax") low);
+    }
+    (high as u64) << 32 | (low as u64)
+}
+
+pub fn tsc_sleep(ticks: u64) {
+    let start = rdtsc();
+    let mut cur = start;
+
+    while cur - start < ticks {
+        cur = rdtsc();
+    }
+}
