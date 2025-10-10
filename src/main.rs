@@ -19,7 +19,7 @@ use core::alloc::Layout;
 use core::panic::PanicInfo;
 use core::ptr::slice_from_raw_parts;
 
-const LOGO: &'static str = include_str!("logo.txt");
+const LOGO: &str = include_str!("logo.txt");
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {

@@ -5,9 +5,9 @@ use crate::{io, irq::IrqSafe};
 mod macros;
 mod vga;
 
-pub use macros::{clear, green, info, print, println, red};
+pub use macros::{clear, info, print, println};
 
-pub static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(|| Console::new()));
+pub static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(Console::new));
 
 pub struct Console {
     output: vga::TextMode80x25,
@@ -54,8 +54,7 @@ impl io::Write for Console {
                 if *byte == 0x1b {
                     if let Some(byte) = iter.next()
                         && *byte == b'['
-                    {
-                        if let (Some(byte1), Some(byte2), Some(byte3)) =
+                        && let (Some(byte1), Some(byte2), Some(byte3)) =
                             (iter.next(), iter.next(), iter.next())
                             && *byte3 == b'm'
                         {
@@ -104,7 +103,6 @@ impl io::Write for Console {
                                 _ => (),
                             }
                         }
-                    }
                     continue;
                 }
 

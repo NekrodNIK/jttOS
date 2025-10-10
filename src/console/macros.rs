@@ -15,25 +15,25 @@ macro_rules! red {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
-        crate::console::print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
+        $crate::console::print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
     }};
 }
 
 #[macro_export]
 macro_rules! println {
-    ($($arg:tt)*) => {{ crate::console::print!("{}\n", format_args!($($arg)*)) }};
+    ($($arg:tt)*) => {{ $crate::console::print!("{}\n", format_args!($($arg)*)) }};
 }
 
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {{
-        write!(crate::console::CONSOLE.lock(), $($arg)*).unwrap()
+        write!($crate::console::CONSOLE.lock(), $($arg)*).unwrap()
     }};
 }
 
 #[macro_export]
 macro_rules! clear {
-    ($($arg:tt)*) => {{ crate::console::CONSOLE.lock().clear() }};
+    ($($arg:tt)*) => {{ $crate::console::CONSOLE.lock().clear() }};
 }
 
 pub use clear;

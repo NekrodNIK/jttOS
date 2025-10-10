@@ -42,7 +42,7 @@ impl EFlags {
                 options(nostack, preserves_flags)
             )
         }
-        return Self::from_bits_retain(flags);
+        Self::from_bits_retain(flags)
     }
 
     pub unsafe fn write(&self) {

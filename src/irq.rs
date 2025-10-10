@@ -22,7 +22,7 @@ impl<T> IrqSafe<T> {
 
     pub fn lock(&self) -> IrqSafeGuard<'_, T> {
         if let Some(guard) = self.try_lock() {
-            return guard;
+            guard
         } else {
             panic!("IrqSafe: double lock");
         }
@@ -44,7 +44,7 @@ impl<T> IrqSafe<T> {
     }
 
     pub fn unlock(&self) {
-        if self.try_unlock() == None {
+        if self.try_unlock().is_none() {
             panic!("IrqSafe: unlock without lock");
         }
     }
@@ -87,13 +87,13 @@ impl<T> Deref for IrqSafeGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        return unsafe { &*self.lock.data.get() };
+        unsafe { &*self.lock.data.get() }
     }
 }
 
 impl<T> DerefMut for IrqSafeGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        return unsafe { &mut *self.lock.data.get() };
+        unsafe { &mut *self.lock.data.get() }
     }
 }
 
