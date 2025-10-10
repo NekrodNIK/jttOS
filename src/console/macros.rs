@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 #[macro_export]
 macro_rules! green {
     ($text:expr) => {
@@ -13,9 +15,23 @@ macro_rules! red {
 }
 
 #[macro_export]
+macro_rules! yellow {
+    ($text:expr) => {
+        concat!("\x1b[33m", $text, "\x1b[39m")
+    };
+}
+
+#[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {{
-        $crate::console::print!("[{}] {}\n", green!("INFO"), format_args!($($arg)*))
+        $crate::console::print!("[{}] {}\n", $crate::console::green!("INFO"), format_args!($($arg)*))
+    }};
+}
+
+#[macro_export]
+macro_rules! warning {
+    ($($arg:tt)*) => {{
+        $crate::console::print!("[{}] {}\n", $crate::console::yellow!("WARNING"), format_args!($($arg)*))
     }};
 }
 
@@ -36,9 +52,13 @@ macro_rules! clear {
     ($($arg:tt)*) => {{ $crate::console::CONSOLE.lock().clear() }};
 }
 
-pub use clear;
 pub use green;
+pub use red;
+pub use yellow;
+
 pub use info;
+pub use warning;
+
+pub use clear;
 pub use print;
 pub use println;
-pub use red;

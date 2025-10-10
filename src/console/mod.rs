@@ -5,7 +5,7 @@ use crate::{io, irq::IrqSafe};
 mod macros;
 mod vga;
 
-pub use macros::{clear, info, print, println};
+pub use macros::*;
 
 pub static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(Console::new));
 
