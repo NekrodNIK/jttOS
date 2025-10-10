@@ -2,7 +2,7 @@ use core::alloc::{GlobalAlloc, Layout};
 
 use crate::irq::IrqSafe;
 
-const ARENA_SIZE: usize = 100 * 1024 * 1024;
+const ARENA_SIZE: usize = 1024;
 
 const ARENA_START: usize = 0x100000;
 const ARENA_END: usize = ARENA_START + ARENA_SIZE;
@@ -19,19 +19,23 @@ struct State {
 unsafe impl GlobalAlloc for LinearAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let mut state = self.inner.lock();
-        assert!(state.current < state.end);
 
+        let mut current = state.current;
         let allocated;
-
         unsafe {
-            state.current = state
-                .current
-                .add(state.current.align_offset(layout.align()));
-            allocated = state.current;
-            state.current = state.current.add(layout.size());
+            current = current.add(current.align_offset(layout.align()));
+            allocated = current;
+            current = current.add(layout.size());
         }
 
-        assert!(state.current < state.end);
+        if current > state.end {
+            panic!(
+                "OOM: the arena is not enough to allocate the layout \n\n{:?}\narena_current: {:x?}\narena_end: {:x?}",
+                layout, state.current, state.end
+            )
+        }
+
+        state.current = current;
         allocated
     }
 

@@ -17,7 +17,6 @@ use crate::io::Write;
 use crate::utils::{cli, tsc_sleep};
 use core::alloc::Layout;
 use core::panic::PanicInfo;
-use core::ptr::slice_from_raw_parts;
 
 const LOGO: &str = include_str!("logo.txt");
 
@@ -28,8 +27,19 @@ pub extern "C" fn kmain() -> ! {
     console::println!("{}", LOGO);
     console::info!("{}", "Loading system...");
 
-    // DEMO
+    let sizes: [usize; 5] = [1, 3, 5, 7, 9];
+    let aligns: [usize; 5] = [2, 4, 8, 16, 32];
 
+    for item in sizes.iter().zip(aligns.iter()).cycle() {
+        let (size, align) = item;
+        let p = unsafe { alloc(Layout::from_size_align(*size, *align).unwrap()) };
+
+        console::info!("align: {}, size: {}, address: {:x?}", align, size, p);
+
+        tsc_sleep(1000000000);
+    }
+
+    // DEMO
     // let mut index = 0;
     // loop {
     //     console::info!("I'm scrolling! index: {}", index);
