@@ -47,3 +47,9 @@ pub unsafe fn inw(port: u16) -> u16 {
     };
     result
 }
+
+pub unsafe fn io_wait() {
+    unsafe {
+        outb(0x80, 0);
+    }
+}
