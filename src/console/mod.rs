@@ -56,53 +56,49 @@ impl io::Write for Console {
                         && *byte == b'['
                         && let (Some(byte1), Some(byte2), Some(byte3)) =
                             (iter.next(), iter.next(), iter.next())
-                            && *byte3 == b'm'
-                        {
-                            let color_escape = &[*byte1, *byte2];
+                        && *byte3 == b'm'
+                    {
+                        let color_escape = &[*byte1, *byte2];
 
-                            enum Command {
-                                ColorFg(vga::Color),
-                                ColorBg(vga::Color),
-                                DefaultFg,
-                                DefaultBg,
-                                Skip,
-                            }
-
-                            let selected = match color_escape {
-                                b"30" => Command::ColorFg(vga::Color::Black),
-                                b"31" => Command::ColorFg(vga::Color::Red),
-                                b"32" => Command::ColorFg(vga::Color::Green),
-                                b"33" => Command::ColorFg(vga::Color::Yellow),
-                                b"34" => Command::ColorFg(vga::Color::Blue),
-                                b"35" => Command::ColorFg(vga::Color::Magenta),
-                                b"36" => Command::ColorFg(vga::Color::Cyan),
-                                b"37" => Command::ColorFg(vga::Color::White),
-                                b"39" => Command::DefaultFg,
-
-                                b"40" => Command::ColorBg(vga::Color::Black),
-                                b"41" => Command::ColorBg(vga::Color::Red),
-                                b"42" => Command::ColorBg(vga::Color::Green),
-                                b"43" => Command::ColorBg(vga::Color::Yellow),
-                                b"44" => Command::ColorBg(vga::Color::Blue),
-                                b"45" => Command::ColorBg(vga::Color::Magenta),
-                                b"46" => Command::ColorBg(vga::Color::Cyan),
-                                b"47" => Command::ColorBg(vga::Color::White),
-                                b"49" => Command::DefaultBg,
-                                _ => Command::Skip,
-                            };
-
-                            match selected {
-                                Command::ColorFg(color) => self.state.fg = color,
-                                Command::ColorBg(color) => self.state.bg = color,
-                                Command::DefaultFg => {
-                                    self.state.fg = vga::DEFAULT_COLORCODE.get_fg()
-                                }
-                                Command::DefaultBg => {
-                                    self.state.bg = vga::DEFAULT_COLORCODE.get_bg()
-                                }
-                                _ => (),
-                            }
+                        enum Command {
+                            ColorFg(vga::Color),
+                            ColorBg(vga::Color),
+                            DefaultFg,
+                            DefaultBg,
+                            Skip,
                         }
+
+                        let selected = match color_escape {
+                            b"30" => Command::ColorFg(vga::Color::Black),
+                            b"31" => Command::ColorFg(vga::Color::Red),
+                            b"32" => Command::ColorFg(vga::Color::Green),
+                            b"33" => Command::ColorFg(vga::Color::Yellow),
+                            b"34" => Command::ColorFg(vga::Color::Blue),
+                            b"35" => Command::ColorFg(vga::Color::Magenta),
+                            b"36" => Command::ColorFg(vga::Color::Cyan),
+                            b"37" => Command::ColorFg(vga::Color::White),
+                            b"39" => Command::DefaultFg,
+
+                            b"40" => Command::ColorBg(vga::Color::Black),
+                            b"41" => Command::ColorBg(vga::Color::Red),
+                            b"42" => Command::ColorBg(vga::Color::Green),
+                            b"43" => Command::ColorBg(vga::Color::Yellow),
+                            b"44" => Command::ColorBg(vga::Color::Blue),
+                            b"45" => Command::ColorBg(vga::Color::Magenta),
+                            b"46" => Command::ColorBg(vga::Color::Cyan),
+                            b"47" => Command::ColorBg(vga::Color::White),
+                            b"49" => Command::DefaultBg,
+                            _ => Command::Skip,
+                        };
+
+                        match selected {
+                            Command::ColorFg(color) => self.state.fg = color,
+                            Command::ColorBg(color) => self.state.bg = color,
+                            Command::DefaultFg => self.state.fg = vga::DEFAULT_COLORCODE.get_fg(),
+                            Command::DefaultBg => self.state.bg = vga::DEFAULT_COLORCODE.get_bg(),
+                            _ => (),
+                        }
+                    }
                     continue;
                 }
 
