@@ -23,7 +23,7 @@ struct State {
 
 impl Console {
     pub fn new() -> Self {
-        Self {
+        let mut new = Self {
             output: vga::TextMode80x25::new(),
             state: State {
                 x: 0,
@@ -31,7 +31,10 @@ impl Console {
                 fg: vga::DEFAULT_COLORCODE.get_fg(),
                 bg: vga::DEFAULT_COLORCODE.get_bg(),
             },
-        }
+        };
+
+        new.output.disable_cursor();
+        new
     }
 
     pub fn clear(&mut self) {

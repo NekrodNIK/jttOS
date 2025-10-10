@@ -1,5 +1,7 @@
 use core::slice;
 
+use crate::port;
+
 pub const DEFAULT_COLORCODE: ColorCode = ColorCode::new(Color::White, Color::Black);
 
 pub struct TextMode80x25 {
@@ -62,6 +64,13 @@ impl TextMode80x25 {
 
     pub fn clear(&mut self) {
         self.buffer.fill(Character::default());
+    }
+
+    pub fn disable_cursor(&mut self) {
+        unsafe {
+            port::outb(0x3d4, 0x0a);
+            port::outb(0x3d5, 0x20);
+        }
     }
 }
 

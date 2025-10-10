@@ -6,10 +6,10 @@ mod allocator;
 mod console;
 mod io;
 mod irq;
+mod port;
 mod utils;
 
 use alloc::alloc::alloc;
-use alloc::boxed::Box;
 use alloc::slice;
 use alloc::string::ToString;
 
