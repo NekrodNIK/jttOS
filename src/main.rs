@@ -91,7 +91,7 @@ fn panic(info: &PanicInfo) -> ! {
     unsafe { cli() }
     console::CONSOLE.try_unlock();
     console::clear!();
-    console::println!("[{}]", red!("KERNEL PANIC"));
+    console::println!("[{}]", console::red!("KERNEL PANIC"));
     console::print!("{}", info.message());
     loop {}
 }
