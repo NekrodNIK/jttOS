@@ -46,7 +46,7 @@ impl Console {
 
 impl io::Write for Console {
     fn write_all(&mut self, buf: &[u8]) -> Result<(), io::Error> {
-        if self.state.y >= vga::TextMode80x25::HEIGHT {
+        if self.state.y == vga::TextMode80x25::HEIGHT {
             self.output.scroll_down();
             self.state.y -= 1;
         }
