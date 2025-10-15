@@ -37,7 +37,7 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=static=boot");
 
-    let linker_script = PathBuf::from(format!("linker.ld"));
+    let linker_script = PathBuf::from("linker.ld".to_string());
 
     println!("cargo:rustc-link-arg=-T{}", linker_script.display());
     println!("cargo:rerun-if-changed={}", linker_script.display());

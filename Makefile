@@ -3,8 +3,8 @@ TMP_DIR=.tmp
 all: clean build test
 
 $(TMP_DIR)/kernel.elf:
-	cargo build --release
-	cp target/i386/release/kernel $@
+	cargo build
+	cp target/i386/debug/kernel $@
 
 $(TMP_DIR)/kernel.bin: $(TMP_DIR)/kernel.elf
 	objcopy -O binary $< $@
@@ -21,7 +21,7 @@ clean:
 	mkdir $(TMP_DIR)
 
 test: build
-	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA
+	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA -full-screen
 
 debug: build
 	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA -s -S &
