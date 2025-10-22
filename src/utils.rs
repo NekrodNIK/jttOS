@@ -66,6 +66,10 @@ pub unsafe fn sti() {
     unsafe { asm!("sti") }
 }
 
+pub unsafe fn lidt(ptr: *const u8) {
+    unsafe { asm!("lidt [{}]", in(reg) ptr) }
+}
+
 pub fn rdtsc() -> u64 {
     let high: u32;
     let low: u32;

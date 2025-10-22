@@ -2,7 +2,7 @@ use core::alloc::{GlobalAlloc, Layout};
 
 use crate::irq::IrqSafe;
 
-const ARENA_SIZE: usize = 1024;
+const ARENA_SIZE: usize = 100 * 1024 * 1024;
 
 const ARENA_START: usize = 0x100000;
 const ARENA_END: usize = ARENA_START + ARENA_SIZE;
