@@ -60,7 +60,7 @@ impl Idt {
             trampoline[0] = 0x6a;
             trampoline[1] = vector;
 
-            let ctx_fn = if !has_errcode(vector) {
+            let ctx_fn = if !Self::has_errcode(vector) {
                 collect_ctx_push
             } else {
                 collect_ctx
@@ -92,6 +92,14 @@ impl Idt {
             lidt(Box::into_raw(desc) as _);
         }
     }
+
+    #[inline(always)]
+    pub const fn has_errcode(vector: u8) -> bool {
+        match vector {
+            0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 => true,
+            _ => false,
+        }
+    }
 }
 
 impl InterruptDescriptor {
@@ -110,7 +118,8 @@ impl InterruptDescriptor {
 extern "C" fn collect_ctx_push() {
     naked_asm!(
         "push [esp]", "jmp {collect}",
-        collect = sym collect_ctx);
+        collect = sym collect_ctx
+    );
 }
 
 #[unsafe(naked)]
@@ -137,7 +146,6 @@ extern "C" fn collect_ctx() {
         "cld",
         "call {handler}",
 
-        // FIXME: linker do this
         sel = const 16,
         handler = sym interrupt_handler,
     )
@@ -187,12 +195,4 @@ extern "C" fn interrupt_handler(ctx: *const InterruptContext) {
         ctx.eflags,
         ctx.eflags
     );
-}
-
-#[inline(always)]
-pub const fn has_errcode(vector: u8) -> bool {
-    match vector {
-        0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 => true,
-        _ => false,
-    }
 }
