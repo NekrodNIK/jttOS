@@ -1,4 +1,8 @@
 global boot_entry
+global gdt
+global cs_desc
+global ds_desc
+
 extern kmain
 extern _kernel_sectors
 

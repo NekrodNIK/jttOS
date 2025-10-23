@@ -31,7 +31,10 @@ pub extern "C" fn kmain() -> ! {
 
     let idt = Idt::new();
     idt.load();
-    unsafe { sti() }
+    unsafe {
+        sti();
+        asm!("int 0x10")
+    }
 
     loop {}
 }

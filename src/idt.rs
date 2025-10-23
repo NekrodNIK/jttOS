@@ -1,15 +1,13 @@
-use core::arch::asm;
+use core::arch::{asm, naked_asm};
 use core::mem;
 use core::mem::MaybeUninit;
 
 use alloc::boxed::Box;
 
-use crate::io::Write;
 use crate::utils::lidt;
-use crate::{console, println};
 
 #[repr(transparent)]
-pub struct Idt(pub [InterruptDescriptor; 256]);
+pub struct Idt([InterruptDescriptor; 256]);
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
@@ -26,16 +24,19 @@ impl Idt {
         let mut table = [MaybeUninit::<InterruptDescriptor>::uninit(); 256];
 
         for index in 0..256 {
-            let mut trampoline = Box::new([0u8; 8]);
+            let mut trampoline = Box::new([0u8; 9]);
+
+            // push eax
+            trampoline[0] = 0x50;
 
             // push $index
-            trampoline[0] = 0x6a;
-            trampoline[1] = index as u8;
+            trampoline[1] = 0x6a;
+            trampoline[2] = index as u8;
 
             // jmp collect_ctx
-            trampoline[2] = 0xe9;
+            trampoline[3] = 0xe9;
             let offset = collect_ctx as isize - trampoline.as_ptr() as isize - 7;
-            trampoline[3..7].copy_from_slice(&offset.to_le_bytes());
+            trampoline[4..8].copy_from_slice(&offset.to_le_bytes());
 
             table[index].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
         }
@@ -73,6 +74,42 @@ impl InterruptDescriptor {
     }
 }
 
-pub extern "C" fn collect_ctx() -> ! {
-    panic!("YEP!");
+unsafe extern "C" {
+    static _cs_selector: u16;
+}
+
+#[unsafe(naked)]
+extern "C" fn collect_ctx() {
+    naked_asm!(
+        // save registers
+        "push ds",
+        "push es",
+        "push fs",
+        "push gs",
+        "pusha",
+        // set selectors
+        "cld",
+        "mov ax, {sel}",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+        // align stack
+        "mov ebx, esp",
+        "add ebx, {align}-1",
+        "and ebx, ~({align}-1)",
+        // push $ctx
+        "sub ebx, {ptr_size}",
+        "push ebx",
+        "call {handler}",
+
+        sel = sym _cs_selector,
+        align = const 16,
+        ptr_size = const mem::size_of::<*const u8>(),
+        handler = sym interrupt_handler
+    )
+}
+
+extern "C" fn interrupt_handler() {
+    panic!("INTERRUPT!!!")
 }
