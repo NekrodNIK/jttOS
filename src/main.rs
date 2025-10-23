@@ -5,16 +5,16 @@ extern crate alloc;
 
 mod allocator;
 mod console;
-mod idt;
 mod io;
 mod irq;
 mod port;
+mod sync;
 mod utils;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
-use idt::Idt;
 use io::Write;
+use sync::Idt;
 
 use utils::sti;
 
