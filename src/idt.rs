@@ -1,14 +1,9 @@
-use core::arch::{asm, naked_asm};
-use core::cell::OnceCell;
+use core::arch::naked_asm;
 use core::mem;
 use core::mem::MaybeUninit;
-use core::ops::DerefMut;
 
 use alloc::boxed::Box;
 
-use crate::io::Write;
-use crate::println;
-use crate::sync::IrqSafe;
 use crate::utils::{EFlags, lidt};
 
 #[repr(transparent)]
@@ -93,12 +88,8 @@ impl Idt {
         }
     }
 
-    #[inline(always)]
     pub const fn has_errcode(vector: u8) -> bool {
-        match vector {
-            0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 => true,
-            _ => false,
-        }
+        matches!(vector, 0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15)
     }
 }
 

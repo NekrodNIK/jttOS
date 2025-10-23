@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(maybe_uninit_write_slice)]
 extern crate alloc;
 
 mod allocator;

@@ -1,6 +1,3 @@
-use core::ptr;
-use core::slice;
-
 use crate::port;
 
 pub const DEFAULT_COLORCODE: ColorCode = ColorCode::new(Color::White, Color::Black);
