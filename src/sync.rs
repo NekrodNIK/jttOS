@@ -1,199 +1,104 @@
-use core::arch::{asm, naked_asm};
-use core::mem;
-use core::mem::MaybeUninit;
+use core::{
+    cell::{Cell, UnsafeCell},
+    ops::{Deref, DerefMut},
+};
 
-use alloc::boxed::Box;
+use crate::utils::{EFlags, cli, sti};
 
-use crate::console;
-use crate::io::Write;
-use crate::utils::{EFlags, lidt};
-
-#[repr(transparent)]
-pub struct Idt([InterruptDescriptor; 256]);
-
-#[repr(C, packed)]
-#[derive(Clone, Copy)]
-struct InterruptDescriptor {
-    offset0: u16,
-    selector: u16,
-    zero: u8,
-    flags: u8,
-    offset1: u16,
+pub struct IrqSafe<T> {
+    locked: Cell<bool>,
+    saved_flag: Cell<bool>,
+    data: UnsafeCell<T>,
 }
 
-#[repr(C, align(4))]
-#[derive(Debug, Clone)]
-struct InterruptContext {
-    pub edi: u32,
-    pub esi: u32,
-    pub ebp: u32,
-    pub esp: u32,
-    pub ebx: u32,
-    pub edx: u32,
-    pub ecx: u32,
-    pub eax: u32,
-
-    pub gs: u16,
-    pub fs: u16,
-    pub es: u16,
-    pub ds: u16,
-
-    pub vector: u8,
-
-    pub errcode: u32,
-    pub eip: u32,
-    pub cs: u16,
-    pub eflags: EFlags,
-}
-
-impl Idt {
-    pub fn new() -> Self {
-        let mut table = [MaybeUninit::<InterruptDescriptor>::uninit(); 256];
-
-        for vector in 0..=255 {
-            let mut trampoline = Box::new([0u8; 8]);
-
-            // push $index
-            trampoline[0] = 0x6a;
-            trampoline[1] = vector;
-
-            let ctx_fn = if !has_errcode(vector) {
-                collect_ctx_push
-            } else {
-                collect_ctx
-            };
-            let offset = ctx_fn as isize - trampoline.as_ptr() as isize - 7;
-
-            // jmp $offset
-            trampoline[2] = 0xe9;
-            trampoline[3..7].copy_from_slice(&offset.to_le_bytes());
-            table[vector as usize].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
-        }
-
-        Self(unsafe { mem::transmute(table) })
-    }
-
-    pub fn load(&self) {
-        #[repr(C, packed)]
-        struct Desc {
-            size: u16,
-            offset: u32,
-        }
-
-        let desc = Box::new(Desc {
-            size: 256 * mem::size_of::<InterruptDescriptor>() as u16 - 1,
-            offset: self.0.as_ptr() as u32,
-        });
-
-        unsafe {
-            lidt(Box::into_raw(desc) as _);
-        }
-    }
-}
-
-impl InterruptDescriptor {
-    pub const fn new(offset: usize) -> Self {
+impl<T> IrqSafe<T> {
+    pub const fn new(t: T) -> Self {
         Self {
-            selector: 8, // code segment
-            offset0: (offset & 0xffff) as _,
-            offset1: (offset >> 16 & 0xffff) as _,
-            flags: 0b1_00_0_1110,
-            zero: 0,
+            locked: Cell::new(false),
+            saved_flag: Cell::new(false),
+            data: UnsafeCell::new(t),
         }
+    }
+
+    pub fn lock(&self) -> IrqSafeGuard<'_, T> {
+        if let Some(guard) = self.try_lock() {
+            guard
+        } else {
+            panic!("IrqSafe: double lock");
+        }
+    }
+
+    pub fn try_lock(&self) -> Option<IrqSafeGuard<'_, T>> {
+        if self.locked.get() {
+            return None;
+        }
+
+        self.saved_flag.set(EFlags::read().contains(EFlags::IF));
+
+        if self.saved_flag.get() {
+            unsafe { cli() }
+        }
+
+        self.locked.set(true);
+        Some(IrqSafeGuard::new(self))
+    }
+
+    pub fn unlock(&self) {
+        if self.try_unlock().is_none() {
+            panic!("IrqSafe: unlock without lock");
+        }
+    }
+
+    pub fn try_unlock(&self) -> Option<()> {
+        if !self.locked.get() {
+            return None;
+        }
+
+        self.locked.set(false);
+
+        if self.saved_flag.get() {
+            unsafe { sti() }
+        }
+
+        Some(())
     }
 }
 
-unsafe extern "C" {
-    static _cs_selector: u16;
+unsafe impl<T> Sync for IrqSafe<T> {}
+unsafe impl<T> Send for IrqSafe<T> {}
+
+pub struct IrqSafeGuard<'a, T> {
+    lock: &'a IrqSafe<T>,
 }
 
-#[unsafe(naked)]
-extern "C" fn collect_ctx_push() {
-    naked_asm!(
-        "push [esp]", "jmp {collect}",
-        collect = sym collect_ctx);
+impl<'a, T> IrqSafeGuard<'a, T> {
+    pub fn new(lock: &'a IrqSafe<T>) -> Self {
+        Self { lock }
+    }
 }
 
-#[unsafe(naked)]
-extern "C" fn collect_ctx() {
-    naked_asm!(
-        // save registers
-        "push ds",
-        "push es",
-        "push fs",
-        "push gs",
-        "pushad",
-        // set selectors
-        "mov ax, {sel}",
-        "mov ds, ax",
-        "mov es, ax",
-        "mov fs, ax",
-        "mov gs, ax",
-        // align stack
-        "mov ebx, esp",
-        "add ebx, 7",
-        "and ebx, ~7",
-        // push $ctx
-        "push ebx",
-        "push ebx",
-
-        // call handler
-        "cld",
-        "call {handler}",
-
-        sel = const 8,
-        handler = sym interrupt_handler,
-    )
+impl<T> Drop for IrqSafeGuard<'_, T> {
+    fn drop(&mut self) {
+        self.lock.unlock();
+    }
 }
 
-extern "C" fn interrupt_handler(ctx: *const InterruptContext) {
-    let ctx = unsafe { (*ctx).clone() };
+impl<T> Deref for IrqSafeGuard<'_, T> {
+    type Target = T;
 
-    panic!(
-        concat!(
-            "unhandled interrupt #{} at {:#x}:{:#x}\n",
-            "\nRegisters:\n",
-            "    eax: {:#x}\n",
-            "    ecx: {:#x}\n",
-            "    edx: {:#x}\n",
-            "    ebx: {:#x}\n",
-            "    esp: {:#x}\n",
-            "    ebp: {:#x}\n",
-            "    esi: {:#x}\n",
-            "    edi: {:#x}\n",
-            "    ds:  {:#x}\n",
-            "    es:  {:#x}\n",
-            "    fs:  {:#x}\n",
-            "    gs:  {:#x}\n",
-            "\nErrcode:\n",
-            "    value: {:#x}\n",
-            "\nEFLAGS:\n",
-            "    value: {:?}\n",
-        ),
-        ctx.vector,
-        ctx.cs,
-        ctx.eip,
-        ctx.eax,
-        ctx.ecx,
-        ctx.edx,
-        ctx.ebx,
-        ctx.esp,
-        ctx.ebp,
-        ctx.esi,
-        ctx.edi,
-        ctx.ds,
-        ctx.es,
-        ctx.fs,
-        ctx.gs,
-        ctx.errcode,
-        ctx.eflags
-    );
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.lock.data.get() }
+    }
 }
 
-#[inline(always)]
-pub const fn has_errcode(vector: u8) -> bool {
-    match vector {
-        0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 => true,
-        _ => false,
+impl<T> DerefMut for IrqSafeGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.lock.data.get() }
+    }
+}
+
+impl<T: Default> Default for IrqSafe<T> {
+    fn default() -> Self {
+        Self::new(T::default())
     }
 }

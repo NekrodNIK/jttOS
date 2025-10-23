@@ -5,22 +5,18 @@ extern crate alloc;
 
 mod allocator;
 mod console;
+mod idt;
 mod io;
-mod irq;
 mod port;
 mod sync;
 mod utils;
 
 use core::arch::asm;
 use core::panic::PanicInfo;
+use idt::Idt;
 use io::Write;
-use sync::Idt;
-
-use utils::sti;
-
+use utils::EFlags;
 use utils::cli;
-
-use crate::utils::EFlags;
 
 const LOGO: &str = include_str!("logo.txt");
 
@@ -34,19 +30,37 @@ pub extern "C" fn kmain() -> ! {
     let idt = Idt::new();
     idt.load();
 
+    unsafe {
+        EFlags::new().write();
+    }
+
+    macro_rules! set_regs {
+        () => {
+            concat!(
+                "mov eax, 1984\n",
+                "mov ecx, 0xbebebebe\n",
+                "mov edx, 0x1badb002\n",
+                "mov ebx, 0\n",
+                "mov ebp, 0xbeef\n",
+                "mov esi, 0xCb\n",
+                "mov edi, 0xdd\n",
+            )
+        };
+    }
+
     #[cfg(e1)]
     unsafe {
-        asm!("int 0x11")
+        asm!(set_regs!(), "div ebx")
     }
 
     #[cfg(e2)]
-    {
-        unsafe { asm!("int 0x15") }
+    unsafe {
+        asm!(set_regs!(), "int 0x13")
     }
 
     #[cfg(e3)]
-    {
-        unsafe { asm!("int 0x15") }
+    unsafe {
+        asm!(set_regs!(), "sti")
     }
 
     loop {}
