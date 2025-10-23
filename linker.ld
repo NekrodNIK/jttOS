@@ -26,9 +26,6 @@ SECTIONS {
     ASSERT(_kernel_size <= 200 * 1024, "kernel is too large, max 200KiB")
     _kernel_sectors = _kernel_size / 512;
 
-    _cs_selector = cs_desc - gdt;
-    _ds_selector = ds_desc - gdt;
-
     /DISCARD/ : {
         *(.eh_frame)
         *(.note.gnu.property)

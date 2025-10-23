@@ -4,7 +4,9 @@ use core::mem::MaybeUninit;
 
 use alloc::boxed::Box;
 
-use crate::utils::lidt;
+use crate::console;
+use crate::io::Write;
+use crate::utils::{EFlags, lidt};
 
 #[repr(transparent)]
 pub struct Idt([InterruptDescriptor; 256]);
@@ -19,26 +21,53 @@ struct InterruptDescriptor {
     offset1: u16,
 }
 
+#[repr(C, align(4))]
+#[derive(Debug, Clone)]
+struct InterruptContext {
+    pub edi: u32,
+    pub esi: u32,
+    pub ebp: u32,
+    pub esp: u32,
+    pub ebx: u32,
+    pub edx: u32,
+    pub ecx: u32,
+    pub eax: u32,
+
+    pub gs: u16,
+    pub fs: u16,
+    pub es: u16,
+    pub ds: u16,
+
+    pub vector: u8,
+
+    pub errcode: u32,
+    pub eip: u32,
+    pub cs: u16,
+    pub eflags: EFlags,
+}
+
 impl Idt {
     pub fn new() -> Self {
         let mut table = [MaybeUninit::<InterruptDescriptor>::uninit(); 256];
 
-        for index in 0..256 {
-            let mut trampoline = Box::new([0u8; 9]);
-
-            // push eax
-            trampoline[0] = 0x50;
+        for vector in 0..=255 {
+            let mut trampoline = Box::new([0u8; 8]);
 
             // push $index
-            trampoline[1] = 0x6a;
-            trampoline[2] = index as u8;
+            trampoline[0] = 0x6a;
+            trampoline[1] = vector;
 
-            // jmp collect_ctx
-            trampoline[3] = 0xe9;
-            let offset = collect_ctx as isize - trampoline.as_ptr() as isize - 7;
-            trampoline[4..8].copy_from_slice(&offset.to_le_bytes());
+            let ctx_fn = if !has_errcode(vector) {
+                collect_ctx_push
+            } else {
+                collect_ctx
+            };
+            let offset = ctx_fn as isize - trampoline.as_ptr() as isize - 7;
 
-            table[index].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
+            // jmp $offset
+            trampoline[2] = 0xe9;
+            trampoline[3..7].copy_from_slice(&offset.to_le_bytes());
+            table[vector as usize].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
         }
 
         Self(unsafe { mem::transmute(table) })
@@ -79,6 +108,13 @@ unsafe extern "C" {
 }
 
 #[unsafe(naked)]
+extern "C" fn collect_ctx_push() {
+    naked_asm!(
+        "push [esp]", "jmp {collect}",
+        collect = sym collect_ctx);
+}
+
+#[unsafe(naked)]
 extern "C" fn collect_ctx() {
     naked_asm!(
         // save registers
@@ -86,9 +122,8 @@ extern "C" fn collect_ctx() {
         "push es",
         "push fs",
         "push gs",
-        "pusha",
+        "pushad",
         // set selectors
-        "cld",
         "mov ax, {sel}",
         "mov ds, ax",
         "mov es, ax",
@@ -96,20 +131,69 @@ extern "C" fn collect_ctx() {
         "mov gs, ax",
         // align stack
         "mov ebx, esp",
-        "add ebx, {align}-1",
-        "and ebx, ~({align}-1)",
+        "add ebx, 7",
+        "and ebx, ~7",
         // push $ctx
-        "sub ebx, {ptr_size}",
         "push ebx",
+        "push ebx",
+
+        // call handler
+        "cld",
         "call {handler}",
 
-        sel = sym _cs_selector,
-        align = const 16,
-        ptr_size = const mem::size_of::<*const u8>(),
-        handler = sym interrupt_handler
+        sel = const 8,
+        handler = sym interrupt_handler,
     )
 }
 
-extern "C" fn interrupt_handler() {
-    panic!("INTERRUPT!!!")
+extern "C" fn interrupt_handler(ctx: *const InterruptContext) {
+    let ctx = unsafe { (*ctx).clone() };
+
+    panic!(
+        concat!(
+            "unhandled interrupt #{} at {:#x}:{:#x}\n",
+            "\nRegisters:\n",
+            "    eax: {:#x}\n",
+            "    ecx: {:#x}\n",
+            "    edx: {:#x}\n",
+            "    ebx: {:#x}\n",
+            "    esp: {:#x}\n",
+            "    ebp: {:#x}\n",
+            "    esi: {:#x}\n",
+            "    edi: {:#x}\n",
+            "    ds:  {:#x}\n",
+            "    es:  {:#x}\n",
+            "    fs:  {:#x}\n",
+            "    gs:  {:#x}\n",
+            "\nErrcode:\n",
+            "    value: {:#x}\n",
+            "\nEFLAGS:\n",
+            "    value: {:?}\n",
+        ),
+        ctx.vector,
+        ctx.cs,
+        ctx.eip,
+        ctx.eax,
+        ctx.ecx,
+        ctx.edx,
+        ctx.ebx,
+        ctx.esp,
+        ctx.ebp,
+        ctx.esi,
+        ctx.edi,
+        ctx.ds,
+        ctx.es,
+        ctx.fs,
+        ctx.gs,
+        ctx.errcode,
+        ctx.eflags
+    );
+}
+
+#[inline(always)]
+pub const fn has_errcode(vector: u8) -> bool {
+    match vector {
+        0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 => true,
+        _ => false,
+    }
 }

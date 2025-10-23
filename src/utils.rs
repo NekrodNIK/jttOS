@@ -2,6 +2,8 @@ use bitflags::bitflags;
 use core::arch::asm;
 
 bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    #[repr(transparent)]
     pub struct EFlags: u32 {
         const ID = 1 << 21;
         const VIP = 1 << 20;

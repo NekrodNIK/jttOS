@@ -20,6 +20,8 @@ use utils::sti;
 
 use utils::cli;
 
+use crate::utils::EFlags;
+
 const LOGO: &str = include_str!("logo.txt");
 
 #[unsafe(no_mangle)]
@@ -31,9 +33,20 @@ pub extern "C" fn kmain() -> ! {
 
     let idt = Idt::new();
     idt.load();
+
+    #[cfg(e1)]
     unsafe {
-        sti();
-        asm!("int 0x10")
+        asm!("int 0x11")
+    }
+
+    #[cfg(e2)]
+    {
+        unsafe { asm!("int 0x15") }
+    }
+
+    #[cfg(e3)]
+    {
+        unsafe { asm!("int 0x15") }
     }
 
     loop {}
