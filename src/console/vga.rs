@@ -1,11 +1,9 @@
-use core::slice;
-
 use crate::port;
 
 pub const DEFAULT_COLORCODE: ColorCode = ColorCode::new(Color::White, Color::Black);
 
 pub struct TextMode80x25 {
-    buffer: &'static mut [Character],
+    buffer: *mut Character,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -49,21 +47,41 @@ impl TextMode80x25 {
 
     pub fn new() -> Self {
         Self {
-            buffer: unsafe { slice::from_raw_parts_mut(Self::ADDR as *mut Character, Self::SIZE) },
+            buffer: Self::ADDR as *mut Character,
         }
     }
 
     pub fn set_character(&mut self, character: Character, x: usize, y: usize) {
-        self.buffer[x + y * Self::WIDTH] = character;
+        unsafe {
+            self.buffer
+                .add(x + y * Self::WIDTH)
+                .write_volatile(character)
+        }
     }
 
     pub fn scroll_down(&mut self) {
-        self.buffer.copy_within(Self::WIDTH.., 0);
-        self.buffer[Self::WIDTH * (Self::HEIGHT - 1)..].fill(Character::default());
+        for y in 0..(Self::HEIGHT - 1) {
+            for x in 0..Self::WIDTH {
+                unsafe {
+                    let src = self.buffer.add(x + (y + 1) * Self::WIDTH).read_volatile();
+                    (self.buffer.add(x + y * Self::WIDTH)).write_volatile(src);
+                }
+            }
+        }
+
+        for x in 0..Self::WIDTH {
+            unsafe {
+                self.buffer
+                    .add(x + (Self::HEIGHT - 1) * Self::WIDTH)
+                    .write_volatile(Character::default())
+            }
+        }
     }
 
     pub fn clear(&mut self) {
-        self.buffer.fill(Character::default());
+        for i in 0..Self::SIZE {
+            unsafe { self.buffer.add(i).write_volatile(Character::default()) }
+        }
     }
 
     pub fn disable_cursor(&mut self) {
