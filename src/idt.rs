@@ -136,7 +136,7 @@ extern "C" fn collect_ctx() {
         "mov gs, ax",
         // align
         "mov ebx, esp",
-        "and esp, ~7",
+        "and esp, ~15",
         "push eax",
         // call handler
         "push ebx",
