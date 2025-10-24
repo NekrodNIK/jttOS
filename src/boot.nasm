@@ -1,4 +1,7 @@
 global boot_entry
+extern e1
+extern e2
+extern e3
 extern kmain
 extern _kernel_sectors
 
@@ -108,6 +111,29 @@ trampoline:
     mov gs, ax
 
     jmp kmain
+
+set_regs:
+    mov eax, 1984
+    mov ecx, 0xdd
+    mov edx, 0
+    mov ebx, 0x1badb002
+    mov ebp, 0xbeef
+    mov esi, 0xbebebebe
+    mov edi, 0
+    ret
+    
+e1:
+    call set_regs
+    idiv edi
+    ret
+e2:
+    call set_regs
+    int 0x13
+    ret
+e3:
+    call set_regs
+    sti
+    ret
 
 ; ==========
 ;    DATA
