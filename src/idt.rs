@@ -6,8 +6,16 @@ use alloc::boxed::Box;
 
 use crate::utils::{EFlags, lidt};
 
-#[repr(transparent)]
-pub struct Idt([InterruptDescriptor; 256]);
+pub struct Idt {
+    table: [InterruptDescriptor; 256],
+    desc: IdtDescriptor,
+}
+
+#[repr(C, packed)]
+struct IdtDescriptor {
+    size: u16,
+    offset: u32,
+}
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
@@ -68,23 +76,18 @@ impl Idt {
             table[vector as usize].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
         }
 
-        Self(unsafe { mem::transmute(table) })
+        Self {
+            table: unsafe { mem::transmute(table) },
+            desc: IdtDescriptor {
+                size: table.len() as u16,
+                offset: table.as_ptr() as u32,
+            },
+        }
     }
 
     pub fn load(&self) {
-        #[repr(C, packed)]
-        struct Desc {
-            size: u16,
-            offset: u32,
-        }
-
-        let desc = Box::new(Desc {
-            size: 256 * mem::size_of::<InterruptDescriptor>() as u16 - 1,
-            offset: self.0.as_ptr() as u32,
-        });
-
         unsafe {
-            lidt(Box::into_raw(desc) as _);
+            lidt(&self.desc as *const IdtDescriptor as _);
         }
     }
 

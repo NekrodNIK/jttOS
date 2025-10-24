@@ -10,6 +10,7 @@ mod port;
 mod sync;
 mod utils;
 
+use alloc::boxed::Box;
 use core::arch::asm;
 use core::panic::PanicInfo;
 use idt::Idt;
@@ -26,7 +27,7 @@ pub extern "C" fn kmain() -> ! {
     console::println!("{}", LOGO);
     console::info!("{}", "Loading system...");
 
-    let idt = Idt::new();
+    let idt = Box::new(Idt::new());
     idt.load();
 
     unsafe {
