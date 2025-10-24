@@ -1,7 +1,7 @@
 global boot_entry
-extern e1
-extern e2
-extern e3
+global e1
+global e2
+global e3
 extern kmain
 extern _kernel_sectors
 
