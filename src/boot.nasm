@@ -122,19 +122,6 @@ set_regs:
     mov edi, 0
     ret
     
-e1:
-    call set_regs
-    idiv edi
-    ret
-e2:
-    call set_regs
-    int 0x13
-    ret
-e3:
-    call set_regs
-    sti
-    ret
-
 ; ==========
 ;    DATA
 ; ==========

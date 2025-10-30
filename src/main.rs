@@ -6,6 +6,7 @@ mod allocator;
 mod console;
 mod idt;
 mod io;
+mod pic8259;
 mod port;
 mod sync;
 mod utils;
@@ -16,6 +17,8 @@ use idt::Idt;
 use io::Write;
 use utils::EFlags;
 use utils::cli;
+
+use crate::pic8259::ChainedPics;
 
 const LOGO: &str = include_str!("logo.txt");
 
@@ -35,20 +38,11 @@ pub extern "C" fn kmain() -> ! {
     let idt = Box::new(Idt::new());
     idt.load();
 
+    let pics = ChainedPics::new(0x20, 0x28);
+    pics.init();
+
     unsafe {
-        EFlags::new().write();
-    }
-
-    if cfg!(e1) {
-        unsafe { e1() }
-    }
-
-    if cfg!(e2) {
-        unsafe { e2() }
-    }
-
-    if cfg!(e3) {
-        unsafe { e3() }
+        (EFlags::new() | EFlags::IF).write();
     }
 
     loop {}
