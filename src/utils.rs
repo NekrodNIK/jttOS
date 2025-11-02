@@ -2,6 +2,8 @@ use bitflags::bitflags;
 use core::arch::asm;
 
 bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    #[repr(transparent)]
     pub struct EFlags: u32 {
         const ID = 1 << 21;
         const VIP = 1 << 20;
@@ -64,6 +66,10 @@ pub unsafe fn cli() {
 
 pub unsafe fn sti() {
     unsafe { asm!("sti") }
+}
+
+pub unsafe fn lidt(ptr: *const u8) {
+    unsafe { asm!("lidt [{}]", in(reg) ptr) }
 }
 
 pub fn rdtsc() -> u64 {

@@ -1,6 +1,6 @@
 use core::cell::LazyCell;
 
-use crate::{io, irq::IrqSafe};
+use crate::{io, sync::IrqSafe};
 
 mod macros;
 mod vga;
