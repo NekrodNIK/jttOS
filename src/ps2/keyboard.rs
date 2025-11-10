@@ -23,6 +23,7 @@ impl Keyboard {
     }
 
     pub fn init(&self) {
+        // FIXME: WAIT WAIT WAIT
         Self::COMMAND.write(0x20);
         let cfg = Self::DATA.read();
 
