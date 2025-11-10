@@ -1,10 +1,20 @@
+// FIXME: WRONG STACK
+use core::arch::asm;
 use core::arch::naked_asm;
 use core::mem;
 use core::mem::MaybeUninit;
 
 use alloc::boxed::Box;
 
-use crate::utils::{EFlags, lidt};
+use crate::console;
+use crate::io::Write;
+use crate::{
+    sync::IntSafe,
+    utils::{EFlags, lidt},
+};
+
+static HANDLERS: [IntSafe<Option<fn(&InterruptContext)>>; 256] =
+    [const { IntSafe::new(None) }; 256];
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -29,7 +39,7 @@ struct InterruptDescriptor {
 
 #[repr(C, align(4))]
 #[derive(Debug, Clone)]
-struct InterruptContext {
+pub struct InterruptContext {
     pub edi: u32,
     pub esi: u32,
     pub ebp: u32,
@@ -79,7 +89,7 @@ impl Idt {
         Self {
             table: unsafe { mem::transmute(table) },
             desc: IdtDescriptor {
-                size: table.len() as u16,
+                size: (mem::size_of::<[InterruptDescriptor; 256]>() - 1) as u16,
                 offset: table.as_ptr() as u32,
             },
         }
@@ -91,7 +101,7 @@ impl Idt {
         }
     }
 
-    pub const fn has_errcode(vector: u8) -> bool {
+    const fn has_errcode(vector: u8) -> bool {
         matches!(
             vector,
             0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 | 0x1d | 0x1E
@@ -105,7 +115,7 @@ impl InterruptDescriptor {
             selector: 8, // code segment
             offset0: (offset & 0xffff) as _,
             offset1: (offset >> 16 & 0xffff) as _,
-            flags: 0b1_00_0_1110,
+            flags: 0x8e,
             zero: 0,
         }
     }
@@ -114,7 +124,8 @@ impl InterruptDescriptor {
 #[unsafe(naked)]
 extern "C" fn collect_ctx_push() {
     naked_asm!(
-        "push [esp]", "jmp {collect}",
+        "push [esp]",
+        "jmp {collect}",
         collect = sym collect_ctx
     );
 }
@@ -143,14 +154,35 @@ extern "C" fn collect_ctx() {
         "cld",
         "call {handler}",
 
+        "mov esp, ebx",
+        "popad",
+        "pop gs",
+        "pop fs",
+        "pop es",
+        "pop ds",
+        "add esp, 8",
+        "iretd",
+
         sel = const 16,
-        handler = sym interrupt_handler,
+        handler = sym global_handler,
     )
 }
 
-extern "C" fn interrupt_handler(ctx: *const InterruptContext) {
-    let ctx = unsafe { (*ctx).clone() };
+extern "C" fn global_handler(ctx: *const InterruptContext) {
+    if ctx.is_null() {
+        panic!("Invalid context passed to global interrupt handler")
+    }
 
+    let ctx = unsafe { &*ctx };
+
+    (match *HANDLERS[ctx.vector as usize].lock() {
+        Some(handler) => handler,
+        None => unhandled_panic,
+    })(ctx);
+}
+
+fn unhandled_panic(ctx: &InterruptContext) {
+    console::println!("{}", ctx.vector);
     panic!(
         concat!(
             "unhandled interrupt #{} at {:#x}:{:#x}\n",
@@ -192,4 +224,8 @@ extern "C" fn interrupt_handler(ctx: *const InterruptContext) {
         ctx.eflags,
         ctx.eflags
     );
+}
+
+pub fn register_handler(index: u8, handler: fn(&InterruptContext)) {
+    *HANDLERS[index as usize].lock() = Some(handler);
 }

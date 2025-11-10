@@ -23,7 +23,7 @@ impl<T> Port<T> {
         }
     }
 
-    pub fn address(&self) -> u16 {
+    pub const fn address(&self) -> u16 {
         self.address
     }
 }
@@ -37,6 +37,12 @@ impl<T: PortIn> Port<T> {
 impl<T: PortOut> Port<T> {
     pub fn write(&self, data: T) {
         unsafe { T::port_out(self.address, data) }
+    }
+}
+
+impl<T: PortIn + PortOut> Port<T> {
+    pub fn update(&self, f: impl FnOnce(&T) -> T) {
+        self.write(f(&self.read()))
     }
 }
 

@@ -1,6 +1,6 @@
 use core::alloc::{GlobalAlloc, Layout};
 
-use crate::sync::IrqSafe;
+use crate::sync::IntSafe;
 
 const ARENA_SIZE: usize = 100 * 1024 * 1024;
 
@@ -8,7 +8,7 @@ const ARENA_START: usize = 0x100000;
 const ARENA_END: usize = ARENA_START + ARENA_SIZE;
 
 struct LinearAllocator {
-    inner: IrqSafe<State>,
+    inner: IntSafe<State>,
 }
 
 struct State {
@@ -44,7 +44,7 @@ unsafe impl GlobalAlloc for LinearAllocator {
 
 #[global_allocator]
 static GLOBAL: LinearAllocator = LinearAllocator {
-    inner: IrqSafe::new(State {
+    inner: IntSafe::new(State {
         current: ARENA_START as *mut u8,
         end: ARENA_END as *mut u8,
     }),

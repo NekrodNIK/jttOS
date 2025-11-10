@@ -1,13 +1,13 @@
 use core::cell::LazyCell;
 
-use crate::{io, sync::IrqSafe};
+use crate::{io, sync::IntSafe};
 
 mod macros;
 mod vga;
 
 pub use macros::*;
 
-pub static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(Console::new));
+pub static CONSOLE: IntSafe<LazyCell<Console>> = IntSafe::new(LazyCell::new(Console::new));
 
 pub struct Console {
     output: vga::TextMode80x25,

@@ -3,24 +3,34 @@
 extern crate alloc;
 
 mod allocator;
+mod circular_buffer;
 mod console;
-mod idt;
+mod device;
+mod interrupts;
 mod io;
 mod pic8259;
 mod port;
+mod ps2;
 mod sync;
 mod utils;
 
-use alloc::boxed::Box;
+use core::cell::LazyCell;
 use core::panic::PanicInfo;
-use idt::Idt;
-use io::Write;
-use utils::EFlags;
-use utils::cli;
 
+use alloc::boxed::Box;
+use core::arch::asm;
+
+use crate::interrupts::{Idt, InterruptContext};
+use crate::io::Write;
 use crate::pic8259::ChainedPics;
+use crate::ps2::Keyboard;
+use crate::sync::IntSafe;
+use crate::utils::{EFlags, cli, sti};
 
 const LOGO: &str = include_str!("logo.txt");
+
+static PICS: IntSafe<ChainedPics> = IntSafe::new(ChainedPics::new(0x20, 0x28));
+static KEYBOARD: IntSafe<Keyboard> = IntSafe::new(Keyboard::new());
 
 unsafe extern "C" {
     pub fn e1();
@@ -33,17 +43,23 @@ pub extern "C" fn kmain() -> ! {
     console::clear!();
 
     console::println!("{}", LOGO);
-    console::info!("{}", "Loading system...");
 
     let idt = Box::new(Idt::new());
     idt.load();
+    console::info!("{}", "IDT loaded");
 
-    let pics = ChainedPics::new(0x20, 0x28);
-    pics.init();
+    PICS.lock().init();
+    console::info!("{}", "PIC initialized");
 
-    unsafe {
-        (EFlags::new() | EFlags::IF).write();
-    }
+    KEYBOARD.lock().init();
+    interrupts::register_handler(0x21, |ctx: &InterruptContext| {
+        KEYBOARD.lock().int_handler(ctx)
+    });
+    PICS.lock().enable_device(1);
+    console::info!("{}", "PS/2 keyboard initialized");
+
+    unsafe { sti() }
+    console::info!("{}", "Interrupts enabled");
 
     loop {}
 }

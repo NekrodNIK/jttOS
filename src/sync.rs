@@ -5,13 +5,13 @@ use core::{
 
 use crate::utils::{EFlags, cli, sti};
 
-pub struct IrqSafe<T> {
+pub struct IntSafe<T> {
     locked: Cell<bool>,
     saved_flag: Cell<bool>,
     data: UnsafeCell<T>,
 }
 
-impl<T> IrqSafe<T> {
+impl<T> IntSafe<T> {
     pub const fn new(t: T) -> Self {
         Self {
             locked: Cell::new(false),
@@ -64,15 +64,15 @@ impl<T> IrqSafe<T> {
     }
 }
 
-unsafe impl<T> Sync for IrqSafe<T> {}
-unsafe impl<T> Send for IrqSafe<T> {}
+unsafe impl<T> Sync for IntSafe<T> {}
+unsafe impl<T> Send for IntSafe<T> {}
 
 pub struct IrqSafeGuard<'a, T> {
-    lock: &'a IrqSafe<T>,
+    lock: &'a IntSafe<T>,
 }
 
 impl<'a, T> IrqSafeGuard<'a, T> {
-    pub fn new(lock: &'a IrqSafe<T>) -> Self {
+    pub fn new(lock: &'a IntSafe<T>) -> Self {
         Self { lock }
     }
 }
@@ -97,7 +97,7 @@ impl<T> DerefMut for IrqSafeGuard<'_, T> {
     }
 }
 
-impl<T: Default> Default for IrqSafe<T> {
+impl<T: Default> Default for IntSafe<T> {
     fn default() -> Self {
         Self::new(T::default())
     }

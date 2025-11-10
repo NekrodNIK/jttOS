@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 
-use crate::port::{Port, io_wait};
+use crate::io::Write;
+use crate::{console, port::Port};
 
 pub struct ChainedPics {
     master: Pic,
@@ -45,27 +46,56 @@ impl ChainedPics {
         }
     }
 
-    pub fn init(&self) {
-        let icw1 = ICW1::ICW4 | !ICW1::SINGLE_CASCADE | !ICW1::LEVEL_EDGE | ICW1::INIT;
+    pub fn init(&mut self) {
+        let mut wait_port = Port::<u8>::new(0x80);
+        let mut wait = || wait_port.write(0);
+
+        let icw1 = ICW1::ICW4 | ICW1::INIT;
         self.master.command.write(icw1.bits());
-        io_wait();
+        wait();
         self.slave.command.write(icw1.bits());
-        io_wait();
+        wait();
 
         self.master.data.write(self.master.offset);
-        io_wait();
+        wait();
         self.slave.data.write(self.slave.offset);
-        io_wait();
+        wait();
 
         self.master.data.write(0b100);
-        io_wait();
+        wait();
         self.slave.data.write(2);
-        io_wait();
+        wait();
 
-        let icw4 = ICW4::AUTO_EOI | ICW4::A0;
+        let icw4 = ICW4::A0;
         self.master.data.write(icw4.bits());
-        io_wait();
+        wait();
         self.slave.data.write(icw4.bits());
-        io_wait();
+        wait();
+
+        self.master.data.write(0xff);
+        wait();
+        self.slave.data.write(0xff);
+        wait();
+    }
+
+    pub fn enable_device(&mut self, mut irq: u8) {
+        let port = if irq < 8 {
+            &mut self.master.data
+        } else {
+            irq -= 8;
+            &mut self.slave.data
+        };
+
+        port.update(|p| p & !(1 << irq));
+    }
+
+    pub fn send_eoi(&mut self, irq: u8) {
+        const EOI: u8 = 0x20;
+        if irq >= 8 {
+            self.slave.command.write(EOI);
+        }
+        self.master.command.write(EOI);
+        let mut wait_port = Port::<u8>::new(0x80);
+        wait_port.write(0);
     }
 }
