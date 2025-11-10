@@ -3,9 +3,10 @@ use crate::{
     interrupts::InterruptContext,
     io::Write,
     port::Port,
-    ps2::key::{Key, KeyEvent},
-    ps2::parser,
-    ps2::parser::KeyParser,
+    ps2::{
+        KEY_EVENTS,
+        parser::{self, KeyParser},
+    },
 };
 
 pub struct Keyboard {
@@ -38,8 +39,9 @@ impl Keyboard {
         let scancode = Self::DATA.read();
 
         match self.parser.parse(scancode) {
-            Ok(KeyEvent::Pressed(key)) => console::println!("Key pressed: {:?}", key),
-            Ok(KeyEvent::Up(key)) => console::println!("Key up: {:?}", key),
+            Ok(event) => {
+                KEY_EVENTS.lock().push_back(event);
+            }
             Err(parser::Error::Incomplete) => (),
             Err(parser::Error::Unrecognized) => {
                 console::warning!("Keyboard: scancode not recognized")

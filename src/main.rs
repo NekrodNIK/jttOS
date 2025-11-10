@@ -3,7 +3,6 @@
 extern crate alloc;
 
 mod allocator;
-mod circular_buffer;
 mod console;
 mod device;
 mod interrupts;
@@ -11,6 +10,7 @@ mod io;
 mod pic8259;
 mod port;
 mod ps2;
+mod ringbuffer;
 mod sync;
 mod utils;
 
@@ -61,7 +61,13 @@ pub extern "C" fn kmain() -> ! {
     unsafe { sti() }
     console::info!("{}", "Interrupts enabled");
 
-    loop {}
+    loop {
+        let mut events = ps2::KEY_EVENTS.lock();
+        if events.available() {
+            console::info!("{:?}", events.pop_front().unwrap());
+        }
+        utils::tsc_sleep(1000000);
+    }
 }
 
 #[panic_handler]

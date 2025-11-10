@@ -20,7 +20,7 @@ impl<T> IntSafe<T> {
         }
     }
 
-    pub fn lock(&self) -> IrqSafeGuard<'_, T> {
+    pub fn lock(&self) -> IntSafeGuard<'_, T> {
         if let Some(guard) = self.try_lock() {
             guard
         } else {
@@ -28,7 +28,7 @@ impl<T> IntSafe<T> {
         }
     }
 
-    pub fn try_lock(&self) -> Option<IrqSafeGuard<'_, T>> {
+    pub fn try_lock(&self) -> Option<IntSafeGuard<'_, T>> {
         if self.locked.get() {
             return None;
         }
@@ -40,7 +40,7 @@ impl<T> IntSafe<T> {
         }
 
         self.locked.set(true);
-        Some(IrqSafeGuard::new(self))
+        Some(IntSafeGuard::new(self))
     }
 
     pub fn unlock(&self) {
@@ -67,23 +67,23 @@ impl<T> IntSafe<T> {
 unsafe impl<T> Sync for IntSafe<T> {}
 unsafe impl<T> Send for IntSafe<T> {}
 
-pub struct IrqSafeGuard<'a, T> {
+pub struct IntSafeGuard<'a, T> {
     lock: &'a IntSafe<T>,
 }
 
-impl<'a, T> IrqSafeGuard<'a, T> {
+impl<'a, T> IntSafeGuard<'a, T> {
     pub fn new(lock: &'a IntSafe<T>) -> Self {
         Self { lock }
     }
 }
 
-impl<T> Drop for IrqSafeGuard<'_, T> {
+impl<T> Drop for IntSafeGuard<'_, T> {
     fn drop(&mut self) {
         self.lock.unlock();
     }
 }
 
-impl<T> Deref for IrqSafeGuard<'_, T> {
+impl<T> Deref for IntSafeGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -91,7 +91,7 @@ impl<T> Deref for IrqSafeGuard<'_, T> {
     }
 }
 
-impl<T> DerefMut for IrqSafeGuard<'_, T> {
+impl<T> DerefMut for IntSafeGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.lock.data.get() }
     }
