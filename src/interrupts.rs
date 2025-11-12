@@ -13,8 +13,7 @@ use crate::{
     utils::{EFlags, lidt},
 };
 
-static HANDLERS: [IntSafe<Option<fn(&InterruptContext)>>; 256] =
-    [const { IntSafe::new(None) }; 256];
+static mut HANDLERS: [Option<fn(&InterruptContext)>; 256] = [None; 256];
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -107,6 +106,10 @@ impl Idt {
             0x8 | 0xa | 0xb | 0xc | 0xd | 0xe | 0x11 | 0x15 | 0x1d | 0x1E
         )
     }
+
+    pub fn set_trap(&mut self, code: usize) {
+        self.table[code].flags = 0x8F;
+    }
 }
 
 impl InterruptDescriptor {
@@ -175,7 +178,7 @@ extern "C" fn global_handler(ctx: *const InterruptContext) {
 
     let ctx = unsafe { &*ctx };
 
-    (match *HANDLERS[ctx.vector as usize].lock() {
+    (match unsafe { HANDLERS[ctx.vector as usize] } {
         Some(handler) => handler,
         None => unhandled_panic,
     })(ctx);
@@ -227,5 +230,7 @@ fn unhandled_panic(ctx: &InterruptContext) {
 }
 
 pub fn register_handler(index: u8, handler: fn(&InterruptContext)) {
-    *HANDLERS[index as usize].lock() = Some(handler);
+    unsafe {
+        HANDLERS[index as usize] = Some(handler);
+    }
 }

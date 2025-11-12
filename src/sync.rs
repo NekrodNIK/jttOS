@@ -1,5 +1,7 @@
 use core::{
+    any::type_name,
     cell::{Cell, UnsafeCell},
+    fmt::{self, Write},
     ops::{Deref, DerefMut},
 };
 
@@ -11,6 +13,16 @@ pub struct IntSafe<T> {
     data: UnsafeCell<T>,
 }
 
+impl<T> fmt::Display for IntSafe<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "{}<{}>",
+            type_name::<Self>(),
+            type_name::<T>()
+        ))
+    }
+}
+
 impl<T> IntSafe<T> {
     pub const fn new(t: T) -> Self {
         Self {
@@ -20,11 +32,15 @@ impl<T> IntSafe<T> {
         }
     }
 
+    pub unsafe fn get(&self) -> &mut T {
+        unsafe { &mut *self.data.get() }
+    }
+
     pub fn lock(&self) -> IntSafeGuard<'_, T> {
         if let Some(guard) = self.try_lock() {
             guard
         } else {
-            panic!("IrqSafe: double lock");
+            panic!("{}: double lock", self);
         }
     }
 

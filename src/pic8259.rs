@@ -46,7 +46,7 @@ impl ChainedPics {
         }
     }
 
-    pub fn init(&mut self) {
+    pub fn init(&mut self, auto_eoi: bool) {
         let mut wait_port = Port::<u8>::new(0x80);
         let mut wait = || wait_port.write(0);
 
@@ -66,7 +66,11 @@ impl ChainedPics {
         self.slave.data.write(2);
         wait();
 
-        let icw4 = ICW4::A0;
+        let mut icw4 = ICW4::A0;
+        if auto_eoi {
+            icw4 |= ICW4::AUTO_EOI;
+        }
+
         self.master.data.write(icw4.bits());
         wait();
         self.slave.data.write(icw4.bits());
@@ -87,6 +91,17 @@ impl ChainedPics {
         };
 
         port.update(|p| p & !(1 << irq));
+    }
+
+    pub fn disable_device(&mut self, mut irq: u8) {
+        let port = if irq < 8 {
+            &mut self.master.data
+        } else {
+            irq -= 8;
+            &mut self.slave.data
+        };
+
+        port.update(|p| p | (1 << irq));
     }
 
     pub fn send_eoi(&mut self, irq: u8) {

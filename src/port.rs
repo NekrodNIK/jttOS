@@ -16,6 +16,7 @@ pub trait PortOut {
 }
 
 impl<T> Port<T> {
+    // TODO: maybe Port new is unsafe
     pub const fn new(address: u16) -> Self {
         Self {
             address,

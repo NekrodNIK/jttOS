@@ -1,4 +1,4 @@
-use core::mem::MaybeUninit;
+use core::{cell::RefCell, mem::MaybeUninit};
 
 pub struct RingBuffer<T, const SIZE: usize> {
     arr: [MaybeUninit<T>; SIZE],
