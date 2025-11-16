@@ -1,6 +1,6 @@
+use core::cell::Cell;
+
 use super::key::{Key, KeyEvent};
-use crate::console;
-use crate::io::Write;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParserState {
@@ -19,23 +19,27 @@ pub enum Error {
 }
 
 pub struct KeyParser {
-    state: ParserState,
+    // FIXME
+    state: Cell<ParserState>,
 }
+//FIXME
+unsafe impl Sync for KeyParser {}
+unsafe impl Send for KeyParser {}
 
 impl KeyParser {
     pub const fn new() -> Self {
         Self {
-            state: ParserState::Normal,
+            state: Cell::new(ParserState::Normal),
         }
     }
 
-    pub fn parse(&mut self, scancode: u8) -> Result<KeyEvent, Error> {
+    pub fn parse(&self, scancode: u8) -> Result<KeyEvent, Error> {
         // TODO: little refactoring
         if scancode == 0x00 {
             return Err(Error::TooManyKeys);
         }
 
-        let next_state = match (self.state, scancode) {
+        let next_state = match (self.state.get(), scancode) {
             // Pause Key
             (ParserState::Normal, 0xE1) => ParserState::PauseKey(0),
             (ParserState::PauseKey(5), _) => ParserState::Extended,
@@ -50,12 +54,12 @@ impl KeyParser {
         match next_state {
             ParserState::Normal => (),
             _ => {
-                self.state = next_state;
+                self.state.set(next_state);
                 return Err(Error::Incomplete);
             }
         }
 
-        match self.state {
+        match self.state.get() {
             ParserState::Extended => {
                 if scancode == 0x12 {
                     return Err(Error::Incomplete);
@@ -69,7 +73,7 @@ impl KeyParser {
             _ => (),
         }
 
-        let key = match self.state {
+        let key = match self.state.get() {
             ParserState::Normal | ParserState::UpNormal => Self::map_normal(scancode),
             ParserState::Extended | ParserState::UpExtended => Self::map_extended(scancode),
             _ => Some(Key::F1),
@@ -80,14 +84,13 @@ impl KeyParser {
         }
         let key = key.unwrap();
 
-        let event = match self.state {
+        let event = match self.state.get() {
             ParserState::Normal | ParserState::Extended => KeyEvent::Pressed(key),
             ParserState::UpNormal | ParserState::UpExtended => KeyEvent::Up(key),
             _ => KeyEvent::Pressed(key),
         };
 
-        self.state = ParserState::Normal;
-
+        self.state.set(ParserState::Normal);
         Ok(event)
     }
 

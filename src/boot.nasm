@@ -1,8 +1,5 @@
 global boot_entry
-global e1
-global e2
-global e3
-extern kmain
+extern kentry
 extern _kernel_sectors
 
 LIM_CYLINDER equ 80
@@ -34,15 +31,15 @@ boot_entry:
     xor ch, ch
     mov cl, 2
     
-    ; ==========================================================
-    ;    dl - disk number
-    ; es:bx - starting address
-    ;    di - number of sectons to read
-    ;    dh - starting head number
-    ;    ch - low 8 bits of starting cylinder number
-    ;    cl - starting sector number (bits 0-5),
-    ;         high 2 bits of starting cylinder number (bits 6-7)
-    ; ==========================================================
+; ==========================================================
+;    dl - disk number
+; es:bx - starting address
+;    di - number of sectons to read
+;    dh - starting head number
+;    ch - low 8 bits of starting cylinder number
+;    cl - starting sector number (bits 0-5),
+;         high 2 bits of starting cylinder number (bits 6-7)
+; ==========================================================
 read_loop:
     mov ah, 0x2
     mov al, 1
@@ -110,17 +107,7 @@ trampoline:
     mov fs, ax
     mov gs, ax
 
-    jmp kmain
-
-set_regs:
-    mov eax, 1984
-    mov ecx, 0xdd
-    mov edx, 0
-    mov ebx, 0x1badb002
-    mov ebp, 0xbeef
-    mov esi, 0xbebebebe
-    mov edi, 0
-    ret
+    jmp kentry
     
 ; ==========
 ;    DATA

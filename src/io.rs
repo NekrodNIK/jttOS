@@ -2,33 +2,25 @@ use core::fmt;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
-    Other,
-    NotFound,
-    PermissionDenied,
-    ConnectionRefused,
-    ConnectionReset,
-    ConnectionAborted,
-    NotConnected,
-    AddrInUse,
-    AddrNotAvailable,
-    BrokenPipe,
-    AlreadyExists,
-    InvalidInput,
-    InvalidData,
-    TimedOut,
-    Interrupted,
-    Unsupported,
-    OutOfMemory,
     WriteZero,
     FmtError,
 }
 
-// TODO: expand to buffered writers
 pub trait Write {
-    fn write_all(&mut self, buf: &[u8]) -> Result<()>;
+    fn write(&mut self, buf: &[u8]) -> Result<usize>;
+    fn flush(&mut self) -> Result<()>;
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        let mut pos = 0;
+
+        while pos < buf.len() {
+            pos += self.write(&buf[pos..])?;
+        }
+
+        Ok(())
+    }
 
     fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> Result<()> {
         struct Adapter<'a, T: Write + ?Sized> {
@@ -57,5 +49,18 @@ pub trait Write {
             Ok(()) => Ok(()),
             Err(..) => output.error,
         }
+    }
+}
+
+pub trait Read {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
+        let mut pos = 0;
+
+        while pos < buf.len() {
+            pos += self.read(&mut buf[pos..])?;
+        }
+
+        Ok(())
     }
 }

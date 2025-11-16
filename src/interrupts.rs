@@ -1,19 +1,20 @@
-// FIXME: WRONG STACK
-use core::arch::asm;
+// FIXME: refactor
 use core::arch::naked_asm;
+use core::array;
 use core::mem;
 use core::mem::MaybeUninit;
+use core::sync::atomic;
+use core::sync::atomic::AtomicPtr;
+use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
 use crate::console;
 use crate::io::Write;
-use crate::{
-    sync::IntSafe,
-    utils::{EFlags, lidt},
-};
+use crate::utils::{EFlags, lidt};
 
-static mut HANDLERS: [Option<fn(&InterruptContext)>; 256] = [None; 256];
+static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
+    [const { AtomicPtr::new(unhandled_panic as _) }; 256];
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -27,7 +28,7 @@ struct IdtDescriptor {
 }
 
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 struct InterruptDescriptor {
     offset0: u16,
     selector: u16,
@@ -63,16 +64,14 @@ pub struct InterruptContext {
 
 impl Idt {
     pub fn new() -> Self {
-        let mut table = [MaybeUninit::<InterruptDescriptor>::uninit(); 256];
-
-        for vector in 0..=255 {
+        let init_fn = |vector| {
             let mut trampoline = Box::new([0u8; 8]);
 
             // push $index
             trampoline[0] = 0x6a;
-            trampoline[1] = vector;
+            trampoline[1] = vector as u8;
 
-            let ctx_fn = if !Self::has_errcode(vector) {
+            let ctx_fn = if !Self::has_errcode(vector as u8) {
                 collect_ctx_push
             } else {
                 collect_ctx
@@ -82,16 +81,19 @@ impl Idt {
             // jmp $offset
             trampoline[2] = 0xe9;
             trampoline[3..7].copy_from_slice(&offset.to_le_bytes());
-            table[vector as usize].write(InterruptDescriptor::new(Box::into_raw(trampoline) as _));
-        }
+            InterruptDescriptor::new(Box::into_raw(trampoline) as _)
+        };
 
-        Self {
-            table: unsafe { mem::transmute(table) },
+        let mut result = Self {
+            table: array::from_fn(init_fn),
             desc: IdtDescriptor {
                 size: (mem::size_of::<[InterruptDescriptor; 256]>() - 1) as u16,
-                offset: table.as_ptr() as u32,
+                offset: 0,
             },
-        }
+        };
+
+        result.desc.offset = result.table.as_ptr() as u32;
+        result
     }
 
     pub fn load(&self) {
@@ -107,8 +109,9 @@ impl Idt {
         )
     }
 
+    // FIXME
     pub fn set_trap(&mut self, code: usize) {
-        self.table[code].flags = 0x8F;
+        self.table[code].flags = 0x8f;
     }
 }
 
@@ -178,10 +181,11 @@ extern "C" fn global_handler(ctx: *const InterruptContext) {
 
     let ctx = unsafe { &*ctx };
 
-    (match unsafe { HANDLERS[ctx.vector as usize] } {
-        Some(handler) => handler,
-        None => unhandled_panic,
-    })(ctx);
+    unsafe {
+        (mem::transmute::<_, fn(&InterruptContext)>(
+            HANDLERS[ctx.vector as usize].load(Ordering::Acquire),
+        ))(ctx);
+    }
 }
 
 fn unhandled_panic(ctx: &InterruptContext) {
@@ -230,7 +234,5 @@ fn unhandled_panic(ctx: &InterruptContext) {
 }
 
 pub fn register_handler(index: u8, handler: fn(&InterruptContext)) {
-    unsafe {
-        HANDLERS[index as usize] = Some(handler);
-    }
+    HANDLERS[index as usize].store(handler as _, Ordering::Release);
 }

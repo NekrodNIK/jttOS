@@ -1,16 +1,8 @@
-use crate::devices::{
-    device::{Device, DeviceController},
-    ps2::keyboard::PS2Keyboard,
-};
-
-use alloc::{boxed::Box, vec, vec::Vec};
+use super::super::port::Port;
 use bitflags::bitflags;
-
-use crate::port::Port;
 
 const COMMAND: Port<u8> = Port::new(0x64);
 const DATA: Port<u8> = Port::new(0x60);
-
 const WRITE_COMMAND_BYTE: u8 = 0x60;
 
 bitflags! {
@@ -24,29 +16,16 @@ bitflags! {
     }
 }
 
-pub struct PS2Controller {
-    pub keyboard: PS2Keyboard,
-}
+pub struct PS2Controller;
 
 impl PS2Controller {
     pub const fn new() -> Self {
-        Self {
-            keyboard: PS2Keyboard::new(),
-        }
+        Self
     }
-}
 
-impl Device for PS2Controller {
-    fn init(&self) {
+    pub fn init(&self) {
         let cbyte = CommandByte::FIRST_INTERRUPT | CommandByte::FIRST_CLOCK;
         COMMAND.write(WRITE_COMMAND_BYTE);
         DATA.write(cbyte.bits());
-        self.keyboard.init();
-    }
-}
-
-impl DeviceController for PS2Controller {
-    fn devices(&self) -> Vec<&dyn Device> {
-        vec![&self.keyboard]
     }
 }

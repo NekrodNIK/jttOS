@@ -13,7 +13,6 @@ pub enum Key {
     F10,
     F11,
     F12,
-
     BackTick,
     Key1,
     Key2,
@@ -28,7 +27,6 @@ pub enum Key {
     Minus,
     Equal,
     Backspace,
-
     Tab,
     Q,
     W,
@@ -43,7 +41,6 @@ pub enum Key {
     OpenBracket,
     CloseBracket,
     Backslash,
-
     CapsLock,
     A,
     S,
@@ -57,7 +54,6 @@ pub enum Key {
     SemiColon,
     SingleQuote,
     Enter,
-
     LeftShift,
     Z,
     X,
@@ -70,28 +66,23 @@ pub enum Key {
     Dot,
     Slash,
     RightShift,
-
     LeftCtrl,
     LeftAlt,
     Space,
     RightAlt,
     RightCtrl,
-
     PrintScreen,
     ScrollLock,
-
     Insert,
     Home,
     PageUp,
     Delete,
     End,
     PageDown,
-
     CursorUp,
     CursorLeft,
     CursorRight,
     CursorDown,
-
     NumpadLock,
     NumpadSlash,
     NumpadMinus,
@@ -109,10 +100,19 @@ pub enum Key {
     Numpad7,
     Numpad8,
     Numpad9,
-
     Pause,
     LeftMeta,
     RightMeta,
+    Power,
+    Sleep,
+    Wake,
+    NextTrack,
+    PreviousTrack,
+    Stop,
+    Play,
+    Mute,
+    VolumeUp,
+    VolumeDown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

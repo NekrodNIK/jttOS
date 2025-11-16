@@ -1,42 +1,41 @@
-use core::alloc::{GlobalAlloc, Layout};
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
-use crate::sync::IntSafe;
-
-const ARENA_SIZE: usize = 100 * 1024 * 1024;
-
+const ARENA_SIZE: usize = 1024 * 1024 * 1024;
 const ARENA_START: usize = 0x100000;
 const ARENA_END: usize = ARENA_START + ARENA_SIZE;
 
-struct LinearAllocator {
-    inner: IntSafe<State>,
-}
-
-struct State {
-    current: *mut u8,
-    end: *mut u8,
+pub struct LinearAllocator {
+    cur: AtomicUsize,
 }
 
 unsafe impl GlobalAlloc for LinearAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let mut state = self.inner.lock();
+        loop {
+            let cur = self.cur.load(Ordering::Acquire);
+            let aligned = (cur + layout.align() - 1) & !(layout.align() - 1);
+            let new = aligned + layout.size();
 
-        let mut current = state.current;
-        let allocated;
-        unsafe {
-            current = current.add(current.align_offset(layout.align()));
-            allocated = current;
-            current = current.add(layout.size());
+            if new > ARENA_END {
+                panic!(
+                    "OOM: the arena is not enough to allocate the layout\n\
+                    {:?}\n\
+                    arena_current: {:x?}\n\
+                    arena_end: {:x?}",
+                    layout, cur, ARENA_END
+                );
+            }
+
+            match self
+                .cur
+                .compare_exchange_weak(cur, new, Ordering::AcqRel, Ordering::Acquire)
+            {
+                Ok(..) => return aligned as _,
+                Err(..) => (),
+            }
         }
-
-        if current > state.end {
-            panic!(
-                "OOM: the arena is not enough to allocate the layout \n\n{:?}\narena_current: {:x?}\narena_end: {:x?}",
-                layout, state.current, state.end
-            )
-        }
-
-        state.current = current;
-        allocated
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
@@ -44,8 +43,5 @@ unsafe impl GlobalAlloc for LinearAllocator {
 
 #[global_allocator]
 static GLOBAL: LinearAllocator = LinearAllocator {
-    inner: IntSafe::new(State {
-        current: ARENA_START as *mut u8,
-        end: ARENA_END as *mut u8,
-    }),
+    cur: AtomicUsize::new(ARENA_START),
 };

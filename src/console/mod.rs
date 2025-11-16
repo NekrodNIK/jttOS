@@ -1,8 +1,10 @@
 use core::cell::LazyCell;
 
-use crate::{io, sync::IntSafe};
+use crate::io;
+use sync::IntSafe;
 
 mod macros;
+mod sync;
 mod vga;
 
 pub use macros::*;
@@ -45,7 +47,7 @@ impl Console {
 }
 
 impl io::Write for Console {
-    fn write_all(&mut self, buf: &[u8]) -> Result<(), io::Error> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         if self.state.y == vga::TextMode80x25::HEIGHT {
             self.output.scroll_down();
             self.state.y -= 1;
@@ -121,6 +123,10 @@ impl io::Write for Console {
             }
         }
 
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }

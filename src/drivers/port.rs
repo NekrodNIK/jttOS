@@ -1,4 +1,3 @@
-// https://wiki.osdev.org/Inline_Assembly/Examples#I.2FO_access
 #![allow(dead_code)]
 use core::{arch::asm, marker::PhantomData};
 
@@ -16,7 +15,6 @@ pub trait PortOut {
 }
 
 impl<T> Port<T> {
-    // TODO: maybe Port new is unsafe
     pub const fn new(address: u16) -> Self {
         Self {
             address,
@@ -98,6 +96,16 @@ pub unsafe fn outw(port: u16, value: u16) {
         asm!(
             "out dx, ax",
             in("ax") value,
+            in("dx") port,
+        );
+    }
+}
+
+pub unsafe fn outl(port: u16, value: u32) {
+    unsafe {
+        asm!(
+            "out dx, eax",
+            in("eax") value,
             in("dx") port,
         );
     }

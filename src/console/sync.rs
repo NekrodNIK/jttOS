@@ -1,7 +1,8 @@
 use core::{
     any::type_name,
     cell::{Cell, UnsafeCell},
-    fmt::{self, Write},
+    fmt,
+    fmt::Write,
     ops::{Deref, DerefMut},
 };
 
@@ -45,15 +46,15 @@ impl<T> IntSafe<T> {
     }
 
     pub fn try_lock(&self) -> Option<IntSafeGuard<'_, T>> {
-        if self.locked.get() {
-            return None;
-        }
+        // if self.locked.get() {
+        //     return None;
+        // }
 
-        self.saved_flag.set(EFlags::read().contains(EFlags::IF));
+        // self.saved_flag.set(EFlags::read().contains(EFlags::IF));
 
-        if self.saved_flag.get() {
-            unsafe { cli() }
-        }
+        // if self.saved_flag.get() {
+        //     unsafe { cli() }
+        // }
 
         self.locked.set(true);
         Some(IntSafeGuard::new(self))
@@ -66,15 +67,15 @@ impl<T> IntSafe<T> {
     }
 
     pub fn try_unlock(&self) -> Option<()> {
-        if !self.locked.get() {
-            return None;
-        }
+        // if !self.locked.get() {
+        //     return None;
+        // }
 
         self.locked.set(false);
 
-        if self.saved_flag.get() {
-            unsafe { sti() }
-        }
+        // if self.saved_flag.get() {
+        //     unsafe { sti() }
+        // }
 
         Some(())
     }

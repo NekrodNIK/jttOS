@@ -3,8 +3,8 @@ TMP_DIR=.tmp
 all: clean build test
 
 $(TMP_DIR)/kernel.elf:
-	cargo build
-	cp target/i386/debug/kernel $@
+	cargo build --release
+	cp target/i386/release/kernel $@
 
 $(TMP_DIR)/kernel.bin: $(TMP_DIR)/kernel.elf
 	objcopy -O binary $< $@
@@ -25,6 +25,6 @@ test: build
 
 debug: build
 	qemu-system-i386 -cpu pentium2 -m 4G -fda os.img -monitor stdio -device VGA -s -S &
-	gdb .tmp/kernel.elf
+	rust-gdb .tmp/kernel.elf
 
 .PHONY: all build clean test debug

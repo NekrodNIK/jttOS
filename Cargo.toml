@@ -6,6 +6,7 @@ build = "build.rs"
 
 [[bin]]
 name = "kernel"
+path = "src/kernel.rs"
 test = false
 bench = false
 
