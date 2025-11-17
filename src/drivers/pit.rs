@@ -4,7 +4,7 @@ use bitflags::bitflags;
 pub const MIN_DIVISOR: u32 = 2;
 pub const MAX_DIVISOR: u32 = 65536;
 
-pub const MIN_FREQ: u32 = (MAX_FREQ + MAX_DIVISOR - 1) / MAX_DIVISOR;
+pub const MIN_FREQ: u32 = MAX_FREQ.div_ceil(MAX_DIVISOR);
 pub const MAX_FREQ: u32 = 1193182;
 
 const CH0: Port<u8> = Port::new(0x40);
@@ -39,7 +39,7 @@ impl Pit {
     }
 
     pub fn init(&self, frequency: u32) {
-        debug_assert!(MIN_FREQ <= frequency && frequency <= MAX_FREQ);
+        debug_assert!((MIN_FREQ..=MAX_FREQ).contains(&frequency));
 
         let cw = ControlWord::CHANNEL0
             | ControlWord::LOW_BYTE
@@ -52,7 +52,7 @@ impl Pit {
     }
 
     fn set_divisor(&self, divisor: u32) {
-        debug_assert!(MIN_DIVISOR <= divisor && divisor <= MAX_DIVISOR);
+        debug_assert!((MIN_DIVISOR..=MAX_DIVISOR).contains(&divisor));
 
         let divisor = (divisor % MAX_DIVISOR) as u16;
         CH0.write((divisor & 0xff) as _);

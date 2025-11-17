@@ -77,7 +77,7 @@ impl KeyParser {
             _ => Some(Key::F1),
         };
 
-        if key == None {
+        if key.is_none() {
             return Err(Error::Unrecognized);
         }
         let key = key.unwrap();

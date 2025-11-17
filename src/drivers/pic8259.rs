@@ -1,7 +1,4 @@
-use crate::{
-    critical_section,
-    utils::{cli, sti},
-};
+use crate::critical_section;
 
 use super::port::Port;
 use bitflags::bitflags;

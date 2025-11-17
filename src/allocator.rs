@@ -28,12 +28,12 @@ unsafe impl GlobalAlloc for LinearAllocator {
                 );
             }
 
-            match self
+            if self
                 .cur
                 .compare_exchange_weak(cur, new, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
             {
-                Ok(..) => return aligned as _,
-                Err(..) => (),
+                return aligned as _;
             }
         }
     }
