@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod allocator;
 mod console;
+mod critical_section;
 mod device_manager;
 mod drivers;
 mod entry;

@@ -1,4 +1,7 @@
-use crate::utils::{cli, sti};
+use crate::{
+    critical_section,
+    utils::{cli, sti},
+};
 
 use super::port::Port;
 use bitflags::bitflags;
@@ -106,14 +109,13 @@ impl ChainedPics {
     }
 
     pub fn send_eoi(&self, irq: u8) {
-        // FIXME: critical section
-        unsafe { cli() }
-        const EOI: u8 = 0x20;
-        if irq >= 8 {
-            self.slave.command.write(EOI);
-        }
-        self.master.command.write(EOI);
-        self.wait();
-        unsafe { sti() }
+        critical_section::wrap(|| {
+            const EOI: u8 = 0x20;
+            if irq >= 8 {
+                self.slave.command.write(EOI);
+            }
+            self.master.command.write(EOI);
+            self.wait();
+        })
     }
 }

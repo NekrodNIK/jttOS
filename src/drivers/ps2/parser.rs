@@ -19,10 +19,9 @@ pub enum Error {
 }
 
 pub struct KeyParser {
-    // FIXME
     state: Cell<ParserState>,
 }
-//FIXME
+
 unsafe impl Sync for KeyParser {}
 unsafe impl Send for KeyParser {}
 

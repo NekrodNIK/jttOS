@@ -1,20 +1,18 @@
 #![allow(unexpected_cfgs)]
 
-use core::arch;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use alloc::boxed::Box;
 
 use crate::device_manager::DEVICES;
-use crate::drivers::port::{self, Port};
+use crate::drivers::port::Port;
 use crate::drivers::ps2;
 use crate::interrupts::Idt;
 use crate::io::Write;
-use crate::utils::{EFlags, cli, sti};
+use crate::utils::sti;
 use crate::{console, interrupts};
 
 static X: AtomicUsize = AtomicUsize::new(0);
-// FIXME keyboard test
 static PARSER: ps2::KeyParser = ps2::KeyParser::new();
 
 pub fn run() {
@@ -144,7 +142,6 @@ fn run_ex8() {
     unsafe { sti() };
 }
 
-// FIXME: smth strange with stack
 fn run_ex9() {
     DEVICES.pic.init(false);
     DEVICES.pic.enable_device(0);
@@ -181,7 +178,7 @@ fn run_ex11(idt: &mut Idt) {
     DEVICES.pic.init(false);
     DEVICES.pic.enable_device(0);
 
-    idt.set_trap(0x20);
+    idt.switch_to_trap(0x20);
     interrupts::register_handler(0x20, |_| {
         let x = X.fetch_add(1, Ordering::Relaxed);
         console::println!("{}", x);
@@ -311,7 +308,7 @@ fn run_ex18(idt: &mut Idt) {
     DEVICES.pic.enable_device(0);
     DEVICES.pic.enable_device(1);
 
-    idt.set_trap(0x21);
+    idt.switch_to_trap(0x21);
     interrupts::register_handler(0x21, |_| {
         if let Ok(event) = PARSER.parse(Port::<u8>::new(0x60).read()) {
             console::println!("{:?}", event);
@@ -319,7 +316,7 @@ fn run_ex18(idt: &mut Idt) {
         };
     });
 
-    idt.set_trap(0x20);
+    idt.switch_to_trap(0x20);
     interrupts::register_handler(0x20, |_| {
         let x = X.load(Ordering::Relaxed);
         console::println!("{}", x);
@@ -334,14 +331,16 @@ fn run_ex19(idt: &mut Idt) {
     DEVICES.pic.enable_device(0);
     DEVICES.pic.enable_device(1);
 
-    idt.set_trap(0x21);
+    idt.switch_to_trap(0x21);
     interrupts::register_handler(0x21, |_| {
-        let c = Port::<u8>::new(0x60).read();
-        console::println!("key: {:?}", c);
+        // One byte
+        if let Ok(event) = PARSER.parse(Port::<u8>::new(0x60).read()) {
+            console::println!("{:?}", event);
+        }
         loop {}
     });
 
-    idt.set_trap(0x20);
+    idt.switch_to_trap(0x20);
     interrupts::register_handler(0x20, |_| {
         let x = X.fetch_add(1, Ordering::Relaxed);
         console::println!("{}", x);
@@ -357,8 +356,10 @@ fn run_ex20() {
     DEVICES.pic.enable_device(1);
 
     interrupts::register_handler(0x21, |_| {
-        let c = Port::<u8>::new(0x60).read();
-        console::println!("key: {:?}", c);
+        // One byte
+        if let Ok(event) = PARSER.parse(Port::<u8>::new(0x60).read()) {
+            console::println!("{:?}", event);
+        }
         loop {}
     });
 

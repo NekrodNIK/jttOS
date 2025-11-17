@@ -103,16 +103,6 @@ pub enum Key {
     Pause,
     LeftMeta,
     RightMeta,
-    Power,
-    Sleep,
-    Wake,
-    NextTrack,
-    PreviousTrack,
-    Stop,
-    Play,
-    Mute,
-    VolumeUp,
-    VolumeDown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

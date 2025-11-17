@@ -1,9 +1,6 @@
-// FIXME: refactor
 use core::arch::naked_asm;
 use core::array;
 use core::mem;
-use core::mem::MaybeUninit;
-use core::sync::atomic;
 use core::sync::atomic::AtomicPtr;
 use core::sync::atomic::Ordering;
 
@@ -109,9 +106,12 @@ impl Idt {
         )
     }
 
-    // FIXME
-    pub fn set_trap(&mut self, code: usize) {
+    pub fn switch_to_trap(&mut self, code: usize) {
         self.table[code].flags = 0x8f;
+    }
+
+    pub fn switch_to_interrupt(&mut self, code: usize) {
+        self.table[code].flags = 0x8e;
     }
 }
 
