@@ -3,7 +3,11 @@ use bitflags::bitflags;
 
 const COMMAND: Port<u8> = Port::new(0x64);
 const DATA: Port<u8> = Port::new(0x60);
+
 const WRITE_COMMAND_BYTE: u8 = 0x60;
+const SET_SCANCODE_SET: u8 = 0xF0;
+
+const ACK: u8 = 0xFA;
 
 bitflags! {
     struct CommandByte : u8 {
@@ -27,5 +31,11 @@ impl PS2Controller {
         let cbyte = CommandByte::FIRST_INTERRUPT | CommandByte::FIRST_CLOCK;
         COMMAND.write(WRITE_COMMAND_BYTE);
         DATA.write(cbyte.bits());
+
+        DATA.write(SET_SCANCODE_SET);
+        DATA.write(2);
+        if DATA.read() != ACK {
+            panic!("PS\\2 keyboard initialization error")
+        };
     }
 }
