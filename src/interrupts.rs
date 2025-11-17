@@ -26,7 +26,7 @@ struct IdtDescriptor {
 
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
-struct InterruptDescriptor {
+pub struct InterruptDescriptor {
     offset0: u16,
     selector: u16,
     zero: u8,
@@ -81,19 +81,17 @@ impl Idt {
             InterruptDescriptor::new(Box::into_raw(trampoline) as _)
         };
 
-        let mut result = Self {
+        Self {
             table: array::from_fn(init_fn),
             desc: IdtDescriptor {
                 size: (mem::size_of::<[InterruptDescriptor; 256]>() - 1) as u16,
                 offset: 0,
             },
-        };
-
-        result.desc.offset = result.table.as_ptr() as u32;
-        result
+        }
     }
 
-    pub fn load(&self) {
+    pub fn load(&mut self) {
+        self.desc.offset = self.table.as_ptr() as u32;
         unsafe {
             lidt(&self.desc as *const IdtDescriptor as _);
         }
