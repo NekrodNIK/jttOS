@@ -23,7 +23,6 @@ pub struct KeyParser {
 }
 
 unsafe impl Sync for KeyParser {}
-unsafe impl Send for KeyParser {}
 
 impl KeyParser {
     pub const fn new() -> Self {

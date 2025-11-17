@@ -1,7 +1,6 @@
 use core::cell::LazyCell;
 
-use crate::io;
-use sync::IntSafe;
+use crate::{console::sync::NullLock, io};
 
 mod macros;
 mod sync;
@@ -9,7 +8,7 @@ mod vga;
 
 pub use macros::*;
 
-pub static CONSOLE: IntSafe<LazyCell<Console>> = IntSafe::new(LazyCell::new(Console::new));
+pub static CONSOLE: NullLock<LazyCell<Console>> = NullLock::new(LazyCell::new(Console::new));
 
 pub struct Console {
     output: vga::TextMode80x25,

@@ -43,13 +43,13 @@ macro_rules! println {
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {{
-        write!($crate::console::CONSOLE.lock(), $($arg)*).unwrap()
+        unsafe {write!(*$crate::console::CONSOLE.get(), $($arg)*).unwrap()}
     }};
 }
 
 #[macro_export]
 macro_rules! clear {
-    ($($arg:tt)*) => {{ $crate::console::CONSOLE.lock().clear() }};
+    ($($arg:tt)*) => {{ unsafe { (*$crate::console::CONSOLE.get()).clear() } }};
 }
 
 pub use green;
