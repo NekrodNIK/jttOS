@@ -181,7 +181,7 @@ extern "C" fn global_handler(ctx: *const InterruptContext) {
 
     unsafe {
         (mem::transmute::<_, fn(&InterruptContext)>(
-            HANDLERS[ctx.vector as usize].load(Ordering::Acquire),
+            HANDLERS[ctx.vector as usize].load(Ordering::Relaxed),
         ))(ctx);
     }
 }
@@ -232,5 +232,5 @@ fn unhandled_panic(ctx: &InterruptContext) {
 }
 
 pub fn register_handler(index: u8, handler: fn(&InterruptContext)) {
-    HANDLERS[index as usize].store(handler as _, Ordering::Release);
+    HANDLERS[index as usize].store(handler as _, Ordering::Relaxed);
 }
