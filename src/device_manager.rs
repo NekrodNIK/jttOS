@@ -26,7 +26,7 @@ impl DeviceManager {
         console::info!("PICs initializated");
         self.ps2controller.init();
         console::info!("PS2 controller initializated");
-        self.pit.init(19);
+        self.pit.init(1000);
         console::info!("PIT initializated");
     }
 }

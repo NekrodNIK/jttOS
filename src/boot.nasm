@@ -1,4 +1,5 @@
 global boot_entry
+extern tss_desc
 extern kentry
 extern _kernel_sectors
 
@@ -97,11 +98,11 @@ switch_protected:
     mov eax, cr0
     or al, 1
     mov cr0, eax
-    jmp (cs_desc-gdt):trampoline
+    jmp (k_cs_desc-gdt):trampoline
 
 bits 32
 trampoline:
-    mov ax, (ds_desc-gdt)
+    mov ax, (k_ds_desc-gdt)
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -121,7 +122,8 @@ msg:
 align 8
 gdt:
     dq 0
-cs_desc:
+
+k_cs_desc:
     .limitLow:                dw 0xff
     .baseLow:                 dw 0
     .baseMid:                 db 0
@@ -129,16 +131,41 @@ cs_desc:
     .g_db_l_avl_limitHigh:    db 0b1100_1111
     .baseHigh:                db 0
 
-ds_desc:
+k_ds_desc:
     .limitLow:                dw 0xff
     .baseLow:                 dw 0
     .baseMid:                 db 0
     .p_dpl_s_type:            db 0b1001_0010
     .g_db_l_avl_limitHigh:    db 0b1100_1111
     .baseHigh:                db 0
+    
+u_cs_desc:
+    .limitLow:                dw 0xff
+    .baseLow:                 dw 0
+    .baseMid:                 db 0
+    .p_dpl_s_type:            db 0b1111_1010
+    .g_db_l_avl_limitHigh:    db 0b1100_1111
+    .baseHigh:                db 0
+
+u_ds_desc:
+    .limitLow:                dw 0xff
+    .baseLow:                 dw 0
+    .baseMid:                 db 0
+    .p_dpl_s_type:            db 0b1111_0010
+    .g_db_l_avl_limitHigh:    db 0b1100_1111
+    .baseHigh:                db 0
+
+tss_desc:
+    .limitLow:                dw 0
+    .baseLow:                 dw 0
+    .baseMid:                 db 0
+    .p_dpl_s_type:            db 0b1000_1001
+    .g_db_l_avl_limitHigh:    db 0b0000_0000
+    .baseHigh:                db 0
+
 
 gdt_desc:
-    dw 0x17
+    dw gdt_desc - gdt - 1
     dd gdt
 
 times 510-($-$$) db 0
