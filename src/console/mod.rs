@@ -1,13 +1,14 @@
 use core::cell::LazyCell;
 
-use crate::{io, sync::IrqSafe};
+use crate::{console::sync::NullLock, io};
 
 mod macros;
+mod sync;
 mod vga;
 
 pub use macros::*;
 
-pub static CONSOLE: IrqSafe<LazyCell<Console>> = IrqSafe::new(LazyCell::new(Console::new));
+pub static CONSOLE: NullLock<LazyCell<Console>> = NullLock::new(LazyCell::new(Console::new));
 
 pub struct Console {
     output: vga::TextMode80x25,
@@ -45,7 +46,7 @@ impl Console {
 }
 
 impl io::Write for Console {
-    fn write_all(&mut self, buf: &[u8]) -> Result<(), io::Error> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         if self.state.y == vga::TextMode80x25::HEIGHT {
             self.output.scroll_down();
             self.state.y -= 1;
@@ -121,6 +122,10 @@ impl io::Write for Console {
             }
         }
 
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
 }

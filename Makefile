@@ -21,10 +21,10 @@ clean:
 	mkdir $(TMP_DIR)
 
 test: build
-	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA -full-screen
+	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA
 
 debug: build
 	qemu-system-i386 -cpu pentium2 -m 1g -fda os.img -monitor stdio -device VGA -s -S &
-	gdb .tmp/kernel.elf
+	rust-gdb .tmp/kernel.elf
 
 .PHONY: all build clean test debug
