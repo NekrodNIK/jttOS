@@ -1,14 +1,6 @@
-[package]
-name = "kernel"
-version = "0.1.0"
-edition = "2024"
-build = "build.rs"
-
-[[bin]]
-name = "kernel"
-path = "src/kernel.rs"
-test = false
-bench = false
+[workspace]
+resolver = "3"
+members = ["kernel", "userspace"]
 
 [profile.dev]
 panic = "abort"
@@ -17,11 +9,6 @@ opt-level = 3
 [profile.release]
 panic = "abort"
 opt-level = 3
-
-[dependencies]
-bitflags = "2.9.4"
-paste = "1.0.15"
-seq-macro = "0.3.6"
-
-[package.metadata.build-script]
-rustc-target = "i386-unknown-none"
+# lto = true
+# codegen-units = 1
+debug = false
