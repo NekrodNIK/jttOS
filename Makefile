@@ -3,8 +3,8 @@ TMP_DIR=.tmp
 all: clean build test
 
 $(TMP_DIR)/kernel.elf:
-	cargo build
-	cp target/i386/debug/kernel $@
+	cargo build --release
+	cp target/i386/release/kernel $@
 
 $(TMP_DIR)/kernel.bin: $(TMP_DIR)/kernel.elf
 	objcopy -O binary $< $@

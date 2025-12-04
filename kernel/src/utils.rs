@@ -1,6 +1,8 @@
 use bitflags::bitflags;
 use core::arch::asm;
 
+use crate::utils;
+
 bitflags! {
     #[derive(Debug, Clone, Copy)]
     #[repr(transparent)]
@@ -89,4 +91,10 @@ pub fn tsc_sleep(ticks: u64) {
     while cur - start < ticks {
         cur = rdtsc();
     }
+}
+
+pub fn esp() -> usize {
+    let mut esp: usize;
+    unsafe { asm!("mov {}, esp", out(reg) esp) }
+    esp
 }

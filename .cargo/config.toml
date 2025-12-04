@@ -2,5 +2,5 @@
 target = "i386.json"
 
 [unstable]
-build-std-features = ["compiler-builtins-mem"]
+build-std-features = ["compiler-builtins-mem", "optimize_for_size"]
 build-std = ["core", "alloc", "compiler_builtins"]

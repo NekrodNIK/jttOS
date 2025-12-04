@@ -22,11 +22,17 @@ impl DeviceManager {
     }
 
     pub fn init_devices(&self) {
+        console::println!(console::yellow!("{:=^80}"), "DEVICES");
+
         self.pic.init(true);
         console::info!("PICs initializated");
+
         self.ps2controller.init();
         console::info!("PS2 controller initializated");
-        self.pit.init(19);
+
+        self.pit.init(20);
         console::info!("PIT initializated");
+
+        console::println!(console::yellow!("{:=<80}"), "");
     }
 }
