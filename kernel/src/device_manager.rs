@@ -30,7 +30,7 @@ impl DeviceManager {
         self.ps2controller.init();
         console::info!("PS2 controller initializated");
 
-        self.pit.init(1000);
+        self.pit.init(20);
         console::info!("PIT initializated");
 
         console::println!(console::yellow!("{:=<80}"), "");

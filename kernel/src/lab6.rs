@@ -2,6 +2,7 @@
 use crate::device_manager::DEVICES;
 use crate::gdt::{GDT, SDFlags0};
 use crate::io::Write;
+use crate::tss::TSS;
 use crate::{console, interrupts, jump_to_userspace, println, utils};
 use core::arch::asm;
 
@@ -26,6 +27,8 @@ pub fn run() {
         ex9()
     } else if cfg!(hack) {
         hack()
+    } else if cfg!(ex10) {
+        ex10()
     }
 }
 
@@ -137,13 +140,25 @@ fn hack() {
     DEVICES.pic.enable_device(0);
 
     jump_to_userspace(|| {
-        GDT.user_code.update(|mut desc| {
-            desc.flags0 &= !SDFlags0::DPL3.bits();
-            desc
-        });
-
+        TSS.iomap_base.set(0);
         DEVICES.pic.disable_device(0);
         console::println!("Broken");
         loop {}
+    });
+}
+
+fn ex10() {
+    static mut X: usize = 0;
+    interrupts::register_handler(0x30, |ctx| console::print!("{} ", ctx.eax));
+    interrupts::register_handler(0x20, |_| unsafe { X = 0 });
+    DEVICES.pic.enable_device(0);
+
+    jump_to_userspace(|| {
+        loop {
+            unsafe {
+                asm!("int 0x30", in("eax") X);
+                X += 1;
+            }
+        }
     });
 }

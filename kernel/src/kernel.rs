@@ -32,6 +32,7 @@ pub fn kmain() {
     console::clear!();
 
     let mut idt = Idt::new();
+    idt.mark_syscall(0x30);
     idt.load();
     console::info!("IDT loaded");
 
