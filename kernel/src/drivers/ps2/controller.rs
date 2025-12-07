@@ -27,15 +27,19 @@ impl PS2Controller {
         Self
     }
 
-    pub fn init(&self) {
+    pub fn init(&self) -> bool {
+        let wait = || Port::<u8>::new(0x80).write(0);
+
         let cbyte = CommandByte::FIRST_INTERRUPT | CommandByte::FIRST_CLOCK;
         COMMAND.write(WRITE_COMMAND_BYTE);
         DATA.write(cbyte.bits());
+        wait();
 
         DATA.write(SET_SCANCODE_SET);
+        wait();
         DATA.write(2);
-        if DATA.read() != ACK {
-            panic!("PS\\2 keyboard initialization error")
-        };
+        wait();
+
+        DATA.read() == ACK
     }
 }
