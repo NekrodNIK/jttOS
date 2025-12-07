@@ -1,10 +1,14 @@
 global boot_entry
 extern kentry
 extern _kernel_sectors
+extern GDT_DESC
 
 LIM_CYLINDER equ 80
 LIM_HEAD equ 2
 LIM_SECTOR equ 19
+
+KERNEL_CS equ 8
+KERNEL_DS equ 16
 
 section .boot
 ; ==========
@@ -92,23 +96,24 @@ disk_err:
 
     
 switch_protected:
-    lgdt [gdt_desc]
+    lgdt [GDT_DESC]
     cld
     mov eax, cr0
     or al, 1
     mov cr0, eax
-    jmp (cs_desc-gdt):trampoline
+    jmp KERNEL_CS:trampoline
+
 
 bits 32
 trampoline:
-    mov ax, (ds_desc-gdt)
+    mov ax, KERNEL_DS
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
     jmp kentry
-    
+
 ; ==========
 ;    DATA
 ; ==========
@@ -117,29 +122,6 @@ msg:
     db `\n\r`
     db 'Sector read error!', `\n\r`
     db 'Press any key...', `\n\r`, 0
-
-align 8
-gdt:
-    dq 0
-cs_desc:
-    .limitLow:                dw 0xff
-    .baseLow:                 dw 0
-    .baseMid:                 db 0
-    .p_dpl_s_type:            db 0b1001_1010
-    .g_db_l_avl_limitHigh:    db 0b1100_1111
-    .baseHigh:                db 0
-
-ds_desc:
-    .limitLow:                dw 0xff
-    .baseLow:                 dw 0
-    .baseMid:                 db 0
-    .p_dpl_s_type:            db 0b1001_0010
-    .g_db_l_avl_limitHigh:    db 0b1100_1111
-    .baseHigh:                db 0
-
-gdt_desc:
-    dw 0x17
-    dd gdt
 
 times 510-($-$$) db 0
 dw 0xaa55

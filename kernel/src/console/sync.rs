@@ -1,4 +1,4 @@
-// FIXME: SHOULD BE REMOVED AFTER LAB5
+// FIXME: SHOULD BE REMOVED AFTER LAB6
 use core::cell::UnsafeCell;
 
 pub struct NullLock<T> {

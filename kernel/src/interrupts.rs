@@ -104,12 +104,12 @@ impl Idt {
         )
     }
 
-    pub fn switch_to_trap(&mut self, code: usize) {
-        self.table[code].flags = 0x8f;
-    }
-
     pub fn switch_to_interrupt(&mut self, code: usize) {
         self.table[code].flags = 0x8e;
+    }
+
+    pub fn mark_syscall(&mut self, code: usize) {
+        self.table[code].flags = 0xee;
     }
 }
 
@@ -231,6 +231,6 @@ fn unhandled_panic(ctx: &InterruptContext) {
     );
 }
 
-pub fn register_handler(index: u8, handler: fn(&InterruptContext)) {
+pub fn register_handler(index: u8, handler: fn(&mut InterruptContext)) {
     HANDLERS[index as usize].store(handler as _, Ordering::Relaxed);
 }

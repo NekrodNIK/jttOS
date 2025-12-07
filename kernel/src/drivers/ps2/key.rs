@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Key {
     Esc,
     F1,
@@ -106,6 +107,7 @@ pub enum Key {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum KeyEvent {
     Pressed(Key),
     Up(Key),
