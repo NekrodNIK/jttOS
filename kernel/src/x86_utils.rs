@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use core::arch::asm;
 
-use crate::utils;
+use crate::x86_utils;
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]

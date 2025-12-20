@@ -1,6 +1,6 @@
 use core::cell::Cell;
 
-use super::key::{Key, KeyEvent};
+use utils::key::{Key, KeyEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParserState {
@@ -132,8 +132,8 @@ impl KeyParser {
             0x43 => Some(Key::I),
             0x44 => Some(Key::O),
             0x4D => Some(Key::P),
-            0x54 => Some(Key::OpenBracket),
-            0x5B => Some(Key::CloseBracket),
+            0x54 => Some(Key::OpenBrace),
+            0x5B => Some(Key::CloseBrace),
             0x5D => Some(Key::Backslash),
             0x58 => Some(Key::CapsLock),
             0x1C => Some(Key::A),

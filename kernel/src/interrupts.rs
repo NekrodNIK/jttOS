@@ -6,9 +6,7 @@ use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
-use crate::console;
-use crate::io::Write;
-use crate::utils::{EFlags, lidt};
+use crate::x86_utils::{EFlags, lidt};
 
 static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
     [const { AtomicPtr::new(unhandled_panic as _) }; 256];
@@ -187,7 +185,6 @@ extern "C" fn global_handler(ctx: *const InterruptContext) {
 }
 
 fn unhandled_panic(ctx: &InterruptContext) {
-    console::println!("{}", ctx.vector);
     panic!(
         concat!(
             "unhandled interrupt #{} at {:#x}:{:#x}\n",

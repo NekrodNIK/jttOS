@@ -1,14 +1,14 @@
 use crate::{
-    console,
     drivers::{pic8259, pit, ps2},
-    io::Write,
+    interrupts,
 };
+use utils::io::Write;
 
 pub static DEVICES: DeviceManager = DeviceManager::new();
 
 pub struct DeviceManager {
     pub pic: pic8259::ChainedPics,
-    pub ps2controller: ps2::PS2Controller,
+    pub ps2keyboard: ps2::PS2Keyboard,
     pub pit: pit::Pit,
 }
 
@@ -16,23 +16,29 @@ impl DeviceManager {
     pub const fn new() -> Self {
         Self {
             pic: pic8259::ChainedPics::new(0x20, 0x28),
-            ps2controller: ps2::PS2Controller::new(),
+            ps2keyboard: ps2::PS2Keyboard::new(),
             pit: pit::Pit::new(),
         }
     }
 
-    pub fn init_devices(&self) {
-        console::println!(console::yellow!("{:=^80}"), "DEVICES");
+    pub fn init_devices(&self, writter: &mut utils::textbuffer::TextBufferWritter) {
+        writter.set_next_fg(0x00ffff00);
+        writeln!(writter, "{:=^80}", "DEVICES").unwrap();
+        writter.set_next_fg(0x00ffffff);
 
         self.pic.init(true);
-        console::info!("PICs initializated");
+        crate::info!(writter, "PICs initializated");
 
-        self.ps2controller.init();
-        console::info!("PS2 controller initializated");
+        self.ps2keyboard.init();
+        interrupts::register_handler(0x21, ps2::PS2Keyboard::int_handler);
+        self.pic.enable_device(1);
+        crate::info!(writter, "PS2 controller initializated");
 
         self.pit.init(20);
-        console::info!("PIT initializated");
+        crate::info!(writter, "PIT initializated");
 
-        console::println!(console::yellow!("{:=<80}"), "");
+        writter.set_next_fg(0x00ffff00);
+        writeln!(writter, "{:=^80}", "").unwrap();
+        writter.set_next_fg(0x00ffffff);
     }
 }

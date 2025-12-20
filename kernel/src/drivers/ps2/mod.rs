@@ -1,6 +1,6 @@
-mod controller;
-mod key;
+mod keyboard;
 mod parser;
 
-pub use controller::PS2Controller;
+pub use keyboard::BUFFER;
+pub use keyboard::PS2Keyboard;
 pub use parser::KeyParser;

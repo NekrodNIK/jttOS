@@ -4,12 +4,13 @@ SECTIONS {
     . = 0x7c00;
 
     .boot : {
+        *(.boot_sector);
+        _copy_start = .;
         *(.boot);
     }
 
-    _kernel_start = .;
-    
     .kernel : ALIGN(512) {
+        *(.vbe);
         *(.text);
         *(.text.*);
         *(.rodata);
@@ -22,9 +23,9 @@ SECTIONS {
     
     . = ALIGN(512);
 
-    _kernel_size = . - _kernel_start;
-    ASSERT(_kernel_size <= 200 * 1024, "kernel is too large, max 200KiB")
-    _kernel_sectors = _kernel_size / 512;
+    _copy_size = . - _copy_start;
+    ASSERT(_copy_size <= 200 * 1024, "OS is too large, max 200KiB")
+    _copy_sectors = _copy_size / 512;
 
     /DISCARD/ : {
         *(.eh_frame)

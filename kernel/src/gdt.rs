@@ -3,6 +3,7 @@ use core::cell::Cell;
 use core::mem;
 
 pub static GDT: Gdt = Gdt::new();
+#[unsafe(link_section = ".boot")]
 #[unsafe(no_mangle)]
 pub static GDT_DESC: GdtDescriptor = GdtDescriptor {
     size: (mem::size_of_val(&GDT) - 1) as u16,
@@ -60,7 +61,7 @@ pub struct Gdt {
 }
 
 #[repr(C, packed)]
-struct GdtDescriptor {
+pub struct GdtDescriptor {
     pub size: u16,
     pub offset: *const Gdt,
 }

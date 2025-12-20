@@ -6,24 +6,13 @@ build = "build.rs"
 
 [[bin]]
 name = "kernel"
-path = "src/kernel.rs"
 test = false
 bench = false
-
-[profile.dev]
-panic = "abort"
-opt-level = 3
-
-[profile.release]
-panic = "abort"
-opt-level = 3
-lto = true
-codegen-units = 1
-debug = false
 
 [dependencies]
 bitflags = "2.9.4"
 userspace = { path = "../userspace" }
+utils = { path = "../utils" }
 
 [package.metadata.build-script]
 rustc-target = "i386-unknown-none"

@@ -1,7 +1,9 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use strum_macros::FromRepr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromRepr)]
 #[repr(u8)]
 pub enum Key {
-    Esc,
+    Esc = 1,
     F1,
     F2,
     F3,
@@ -39,8 +41,8 @@ pub enum Key {
     I,
     O,
     P,
-    OpenBracket,
-    CloseBracket,
+    OpenBrace,
+    CloseBrace,
     Backslash,
     CapsLock,
     A,
@@ -111,4 +113,10 @@ pub enum Key {
 pub enum KeyEvent {
     Pressed(Key),
     Up(Key),
+}
+
+impl Key {
+    pub fn discriminant(&self) -> u8 {
+        unsafe { *<*const _>::from(self).cast::<u8>() }
+    }
 }

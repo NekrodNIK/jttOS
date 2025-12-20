@@ -1,12 +1,17 @@
 use core::panic::PanicInfo;
 
-use crate::{console, io::Write, utils::cli};
+use crate::{new_tbw, x86_utils::cli};
+use utils::io::Write;
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     unsafe { cli() }
-    console::clear!();
-    console::println!("[{}]", console::red!("KERNEL PANIC"));
-    console::print!("{}", info.message());
+    let mut tbw = new_tbw();
+    tbw.clear();
+    write!(tbw, "[").unwrap();
+    tbw.set_next_fg(0x00ff0000);
+    write!(tbw, "KERNEL PANIC").unwrap();
+    tbw.set_next_fg(0x00ffffff);
+    writeln!(tbw, "]\n{}", info.message()).unwrap();
     loop {}
 }

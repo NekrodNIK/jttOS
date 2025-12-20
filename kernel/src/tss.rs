@@ -1,5 +1,4 @@
 use core::arch::asm;
-use core::cell::Cell;
 use core::mem;
 
 pub static TSS: Tss = Tss::new(16, 0x7c00);
@@ -10,7 +9,7 @@ pub struct Tss {
     pub esp0: u32,
     pub ss0: u16,
     _filler1: [u8; 92],
-    pub iomap_base: Cell<u16>,
+    pub iomap_base: u16,
     _filler2: u32,
 }
 
@@ -21,7 +20,7 @@ impl Tss {
             esp0,
             ss0,
             _filler1: [0; 92],
-            iomap_base: Cell::new(mem::size_of::<Tss>() as u16),
+            iomap_base: mem::size_of::<Tss>() as u16,
             _filler2: 0,
         }
     }
