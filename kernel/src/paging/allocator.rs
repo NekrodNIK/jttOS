@@ -1,13 +1,14 @@
-use crate::paging::Page;
-use core::{any::type_name, marker::PhantomData, ptr};
+use core::ptr;
 use utils::nullsync;
+
+const CHUNK_SIZE: usize = 4 * 1024;
 
 const ARENA_START: usize = 0x400000;
 unsafe extern "C" {
     static RAM_SIZE: usize;
 }
 
-pub static PAGE_ALLOCATOR: nullsync::LazyCell<PoolAllocator<Page>> =
+pub static POOL_ALLOCATOR: nullsync::LazyCell<PoolAllocator<CHUNK_SIZE>> =
     nullsync::LazyCell::new(|| {
         PoolAllocator::new(
             ptr::null_mut(),
@@ -16,25 +17,23 @@ pub static PAGE_ALLOCATOR: nullsync::LazyCell<PoolAllocator<Page>> =
         )
     });
 
-pub struct PoolAllocator<T> {
-    state: nullsync::RefCell<PoolAllocatorState<T>>,
+pub struct PoolAllocator<const N: usize> {
+    state: nullsync::RefCell<PoolAllocatorState>,
 }
 
-struct PoolAllocatorState<T> {
+struct PoolAllocatorState {
     pub freed: *mut *mut u8,
     pub current: *mut u8,
     pub end: *mut u8,
-    _phantom: PhantomData<T>,
 }
 
-impl<T> PoolAllocator<T> {
+impl<const N: usize> PoolAllocator<N> {
     pub const fn new(freed: *mut *mut u8, current: *mut u8, end: *mut u8) -> Self {
         Self {
             state: nullsync::RefCell::new(PoolAllocatorState {
                 freed,
                 current,
                 end,
-                _phantom: PhantomData,
             }),
         }
     }
@@ -49,15 +48,14 @@ impl<T> PoolAllocator<T> {
                 state.freed = *state.freed as *mut *mut u8;
                 prev_freed
             } else {
-                state.current = state.current.byte_add(size_of::<T>());
+                state.current = state.current.byte_add(N);
                 if state.current > state.end {
                     panic!(
-                        "OOM: the arena is not enough to allocate the {}\n\
+                        "OOM: the arena is not enough to allocate\n\
+                        chunk_size: {:x}\n\
                         arena_current: {:x?}\n\
                         arena_end: {:x?}",
-                        type_name::<T>(),
-                        state.current,
-                        state.end
+                        N, state.current, state.end
                     );
                 }
                 prev_current

@@ -10,16 +10,20 @@ mod entry;
 mod gdt;
 mod global_alloc;
 mod interrupts;
+mod lab7;
 mod paging;
 mod panic;
 mod syscalls;
 mod tss;
 mod x86_utils;
 
-use alloc::{boxed::Box, collections::btree_set::Union};
-use core::mem;
+use alloc::boxed::Box;
+use core::{
+    mem,
+    sync::atomic::{AtomicPtr, Ordering},
+};
 use device_manager::DEVICES;
-use utils::io::Write;
+use utils::{io::Write, textbuffer::TextBufferWritter};
 
 use crate::{
     gdt::GDT,
@@ -70,21 +74,27 @@ fn new_tbw() -> utils::textbuffer::TextBufferWritter {
     tbw
 }
 
+// lab7 code -> DELETE AFTER LAB 7
+static mut TBW: *mut TextBufferWritter = 0 as _; // :(
+//
+
 pub fn kmain() {
     let mut tbw = new_tbw();
     tbw.clear();
 
-    let fb_start_pde_ind = unsafe { (framebuffer_addr as usize & 0xfffff << 12) >> 12 };
-    let fb_end_pde_ind = unsafe {
-        let addr =
-            framebuffer_addr as usize + framebuffer_width as usize * framebuffer_height as usize;
-        let aligned = (addr + paging::PAGE_SIZE - 1) & !(paging::PAGE_SIZE - 1);
-        aligned
-    };
-
-    paging::init_paging(|index| index == 1 || fb_start_pde_ind <= index || index <= fb_end_pde_ind);
-
-    paging::enable_paging();
+    // lab7 code -> DELETE AFTER LAB 7
+    static TBW: AtomicPtr<TextBufferWritter> = AtomicPtr::new(0 as _);
+    TBW.store(&raw mut tbw, Ordering::Release);
+    if cfg!(labs) {
+        lab7::run()
+    } else {
+        paging::init_paging(
+            paging::PageDirectoryEntry::new_4mb(0 as _, true, true, true),
+            true,
+        );
+        paging::enable_paging();
+    }
+    //
 
     info!(tbw, "Paging enabled");
 
@@ -112,8 +122,34 @@ pub fn kmain() {
     writeln!(tbw, "Press any key...").unwrap();
 
     while DEVICES.ps2keyboard.read() == 0 {
-        tsc_sleep(100)
+        tsc_sleep(10000)
     }
+
+    // lab7 artifact -> DELETE AFTER LAB 7
+    if cfg!(ex1) || cfg!(ex2) || cfg!(ex3) || cfg!(ex4) || cfg!(ex5) || cfg!(ex6) {
+        unsafe {
+            static mut X: usize = 0;
+
+            interrupts::register_handler(0x30, |ctx| {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", ctx.eax).unwrap()
+            });
+            interrupts::register_handler(0x20, |_| X = 0);
+            DEVICES.pic.enable_device(0);
+
+            jump_to_userspace(|| {
+                loop {
+                    asm!("int 0x30", in("eax") X);
+                    X += 1;
+                }
+            });
+        }
+    } else if cfg!(ex7) {
+        jump_to_userspace(|| unsafe {
+            write!(*TBW.load(Ordering::Relaxed), "USERSPACE").unwrap();
+            loop {}
+        });
+    }
+    //
 
     jump_to_userspace(userspace::entry);
 }
