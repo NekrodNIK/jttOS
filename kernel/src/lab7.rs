@@ -24,7 +24,10 @@ pub fn run() {
         ex6();
     } else if cfg!(ex7) {
         ex7();
+    } else if cfg!(ex8) {
+        ex8();
     }
+
     enable_paging();
 }
 
@@ -100,4 +103,32 @@ pub fn ex7() {
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false, // It matters
     );
+}
+
+pub fn ex8() {
+    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    unsafe {
+        *pt = array::from_fn(|i| {
+            PageTableEntry::new(
+                i as _,
+                true,
+                true,
+                !(i * PAGE_SIZE <= 0x7000
+                    || (0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x400_000)),
+            )
+        })
+    }
+
+    let pd = init_paging(
+        PageDirectoryEntry::new_4kb(pt as _, true, true, true),
+        false,
+    );
+
+    unsafe {
+        let user_pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 256];
+        *user_pt = array::from_fn(|i| PageTableEntry::new((1 * 1024 + i) as _, true, true, true));
+
+        let user_pde = PageDirectoryEntry::new_4kb(user_pt as _, true, true, true);
+        (*pd)[1] = user_pde;
+    }
 }

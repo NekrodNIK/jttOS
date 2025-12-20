@@ -37,7 +37,7 @@ pub fn disable_paging() {
     unsafe { asm!("mov eax, cr0", "and eax, ~(1 << 31)", "mov cr0, eax",) }
 }
 
-pub fn init_paging(kernel_pde: PageDirectoryEntry, fb_us: bool) {
+pub fn init_paging(kernel_pde: PageDirectoryEntry, fb_us: bool) -> *mut [PageDirectoryEntry; 1024] {
     let fb_start_pde_ind = unsafe { crate::framebuffer_addr as usize & (0x3ff << 22) } >> 22;
     let fb_end_pde_ind = unsafe {
         let addr = crate::framebuffer_addr as usize
@@ -62,4 +62,5 @@ pub fn init_paging(kernel_pde: PageDirectoryEntry, fb_us: bool) {
     }
 
     init_pagging_regs(pd as *const PageDirectoryEntry);
+    pd
 }

@@ -20,6 +20,7 @@ mod x86_utils;
 use alloc::boxed::Box;
 use core::{
     mem,
+    ptr::null_mut,
     sync::atomic::{AtomicPtr, Ordering},
 };
 use device_manager::DEVICES;
@@ -136,29 +137,57 @@ pub fn kmain() {
             interrupts::register_handler(0x20, |_| X = 0);
             DEVICES.pic.enable_device(0);
 
-            jump_to_userspace(|| {
-                loop {
-                    asm!("int 0x30", in("eax") X);
-                    X += 1;
-                }
-            });
+            jump_to_userspace(
+                || {
+                    loop {
+                        asm!("int 0x30", in("eax") X);
+                        X += 1;
+                    }
+                },
+                null_mut(),
+            );
         }
     } else if cfg!(ex7) {
-        jump_to_userspace(|| unsafe {
-            write!(*TBW.load(Ordering::Relaxed), "USERSPACE").unwrap();
-            loop {}
-        });
+        jump_to_userspace(
+            || unsafe {
+                write!(*TBW.load(Ordering::Relaxed), "USERSPACE").unwrap();
+                loop {}
+            },
+            null_mut(),
+        );
+    } else if cfg!(ex8) {
+        unsafe {
+            static mut X: usize = 0;
+
+            interrupts::register_handler(0x30, |ctx| {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", ctx.eax).unwrap()
+            });
+            interrupts::register_handler(0x20, |_| X = 0);
+            DEVICES.pic.enable_device(0);
+
+            jump_to_userspace(
+                || {
+                    loop {
+                        asm!("int 0x30", in("eax") X);
+                        X += 1;
+                    }
+                },
+                0x800_000 as _,
+            );
+        }
     }
     //
 
     if !cfg!(labs) {
-        jump_to_userspace(userspace::entry);
+        jump_to_userspace(userspace::entry, null_mut());
     }
 }
 
-pub fn jump_to_userspace(entry: fn()) {
+pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
     unsafe {
-        let stack = Box::into_raw(Box::new([0usize; 4 * 1024]));
+        if stack.is_null() {
+            stack = Box::into_raw(Box::new([0u8; 4 * 1024])) as _;
+        }
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
         asm!(
             "push {ss}",

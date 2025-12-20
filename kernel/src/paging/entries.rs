@@ -33,9 +33,9 @@ impl PageTableEntry {
 }
 
 impl PageDirectoryEntry {
-    pub fn new_4kb(pte_addr: *const PageTableEntry, present: bool, rw: bool, us: bool) -> Self {
+    pub fn new_4kb(pt_addr: *const PageTableEntry, present: bool, rw: bool, us: bool) -> Self {
         Self(
-            (pte_addr as u32) & (!0 << 12)
+            (pt_addr as u32) & (!0 << 12)
                 | 0 << 7
                 | (us as u32) << 2
                 | (rw as u32) << 1
