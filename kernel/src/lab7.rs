@@ -74,13 +74,13 @@ pub fn ex6() {
                 i as _,
                 true,
                 true,
-                !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000),
+                !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000), // It doesn't matter, we don't use VGA
             )
         })
     }
     init_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
-        false,
+        false, // It matters
     );
 }
 
@@ -92,12 +92,12 @@ pub fn ex7() {
                 i as _,
                 true,
                 true,
-                !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000),
+                !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000), // It doesn't matter, we don't use VGA
             )
         })
     }
     init_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
-        false,
+        false, // It matters
     );
 }

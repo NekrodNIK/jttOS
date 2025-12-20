@@ -151,7 +151,9 @@ pub fn kmain() {
     }
     //
 
-    jump_to_userspace(userspace::entry);
+    if !cfg!(labs) {
+        jump_to_userspace(userspace::entry);
+    }
 }
 
 pub fn jump_to_userspace(entry: fn()) {
