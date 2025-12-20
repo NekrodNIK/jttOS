@@ -1,88 +1,76 @@
 use crate::paging::Page;
-use core::{ops::Deref, ptr};
+use core::{any::type_name, marker::PhantomData, ptr};
 use utils::nullsync;
 
 const ARENA_START: usize = 0x400000;
 unsafe extern "C" {
     static RAM_SIZE: usize;
 }
-static PAGE_ALLOCATOR: nullsync::LazyCell<PoolAllocator<Page>> = nullsync::LazyCell::new(|| {
-    PoolAllocator::new(
-        ptr::null_mut(),
-        ARENA_START as _,
-        (ARENA_START + unsafe { RAM_SIZE }) as _,
-    )
-});
 
-pub struct PageBox(*mut Page);
+pub static PAGE_ALLOCATOR: nullsync::LazyCell<PoolAllocator<Page>> =
+    nullsync::LazyCell::new(|| {
+        PoolAllocator::new(
+            ptr::null_mut(),
+            ARENA_START as _,
+            (unsafe { RAM_SIZE }) as _,
+        )
+    });
 
-struct PoolAllocator<T> {
+pub struct PoolAllocator<T> {
     state: nullsync::RefCell<PoolAllocatorState<T>>,
 }
 
 struct PoolAllocatorState<T> {
-    pub freed: *mut *mut T,
-    pub current: *mut T,
-    pub end: *mut T,
-}
-
-impl PageBox {
-    pub fn new(value: Page) -> Self {
-        let p = PAGE_ALLOCATOR.alloc();
-        unsafe { *p = value };
-        Self(p)
-    }
-}
-
-impl Deref for PageBox {
-    type Target = Page;
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*(self.0) }
-    }
-}
-
-impl Drop for PageBox {
-    fn drop(&mut self) {
-        PAGE_ALLOCATOR.free(self.0);
-    }
+    pub freed: *mut *mut u8,
+    pub current: *mut u8,
+    pub end: *mut u8,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> PoolAllocator<T> {
-    pub const fn new(freed: *mut *mut T, current: *mut T, end: *mut T) -> Self {
+    pub const fn new(freed: *mut *mut u8, current: *mut u8, end: *mut u8) -> Self {
         Self {
             state: nullsync::RefCell::new(PoolAllocatorState {
                 freed,
                 current,
                 end,
+                _phantom: PhantomData,
             }),
         }
     }
 
-    pub fn alloc(&self) -> *mut T {
+    pub fn alloc(&self) -> *mut u8 {
         let mut state = self.state.borrow_mut();
-        let prev_freed = state.freed as *mut T;
+        let prev_freed = state.freed as *mut u8;
         let prev_current = state.current;
 
         unsafe {
             if !prev_freed.is_null() {
-                state.freed = *state.freed as *mut *mut T;
+                state.freed = *state.freed as *mut *mut u8;
                 prev_freed
             } else {
-                state.current = state.current.add(1);
+                state.current = state.current.byte_add(size_of::<T>());
                 if state.current > state.end {
-                    panic!("OOM: the arena is not enough to allocate a page");
+                    panic!(
+                        "OOM: the arena is not enough to allocate the {}\n\
+                        arena_current: {:x?}\n\
+                        arena_end: {:x?}",
+                        type_name::<T>(),
+                        state.current,
+                        state.end
+                    );
                 }
                 prev_current
             }
         }
     }
 
-    pub fn free(&self, pointer: *mut T) {
+    pub fn free(&self, pointer: *mut u8) {
         let mut state = self.state.borrow_mut();
-        let p = pointer as *mut *mut T;
+        let p = pointer as *mut *mut u8;
 
         unsafe {
-            *p = state.freed as *mut T;
+            *p = state.freed as *mut u8;
             state.freed = p;
         }
     }

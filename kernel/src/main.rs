@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(allocator_api)]
 
 extern crate alloc;
 
@@ -17,11 +16,8 @@ mod syscalls;
 mod tss;
 mod x86_utils;
 
-use alloc::boxed::Box;
-use core::{
-    mem,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use alloc::{boxed::Box, collections::btree_set::Union};
+use core::mem;
 use device_manager::DEVICES;
 use utils::io::Write;
 
@@ -77,6 +73,20 @@ fn new_tbw() -> utils::textbuffer::TextBufferWritter {
 pub fn kmain() {
     let mut tbw = new_tbw();
     tbw.clear();
+
+    let fb_start_pde_ind = unsafe { (framebuffer_addr as usize & 0xfffff << 12) >> 12 };
+    let fb_end_pde_ind = unsafe {
+        let addr =
+            framebuffer_addr as usize + framebuffer_width as usize * framebuffer_height as usize;
+        let aligned = (addr + paging::PAGE_SIZE - 1) & !(paging::PAGE_SIZE - 1);
+        aligned
+    };
+
+    paging::init_paging(|index| index == 1 || fb_start_pde_ind <= index || index <= fb_end_pde_ind);
+
+    paging::enable_paging();
+
+    info!(tbw, "Paging enabled");
 
     let mut idt = Idt::new();
     info!(tbw, "IDT loaded");
