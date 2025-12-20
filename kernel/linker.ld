@@ -27,6 +27,8 @@ SECTIONS {
     ASSERT(_copy_size <= 200 * 1024, "OS is too large, max 200KiB")
     _copy_sectors = _copy_size / 512;
 
+    RAM_SIZE = 10*1024*1024;
+
     /DISCARD/ : {
         *(.eh_frame)
         *(.note.gnu.property)

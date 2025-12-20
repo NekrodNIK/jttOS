@@ -1,15 +1,17 @@
 #![no_std]
 #![no_main]
+#![feature(allocator_api)]
 
 extern crate alloc;
 
-mod allocator;
 mod critical_section;
 mod device_manager;
 mod drivers;
 mod entry;
 mod gdt;
+mod global_alloc;
 mod interrupts;
+mod paging;
 mod panic;
 mod syscalls;
 mod tss;

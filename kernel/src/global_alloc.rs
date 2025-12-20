@@ -3,9 +3,8 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-const ARENA_SIZE: usize = 1024 * 1024 * 1024;
 const ARENA_START: usize = 0x100000;
-const ARENA_END: usize = ARENA_START + ARENA_SIZE;
+const ARENA_END: usize = 0x400000;
 
 pub struct LinearAllocator {
     cur: AtomicUsize,
