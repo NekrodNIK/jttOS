@@ -5,7 +5,8 @@ use crate::{
     interrupts::Idt,
     jump_to_userspace,
     paging::{
-        PAGE_SIZE, POOL_ALLOCATOR, PageDirectoryEntry, PageTableEntry, enable_paging, init_paging,
+        PAGE_SIZE, POOL4K, PageDirectoryEntry, PageTableEntry, enable_paging, init_kernel_paging,
+        init_user_paging,
     },
 };
 
@@ -26,51 +27,53 @@ pub fn run() {
         ex7();
     } else if cfg!(ex8) {
         ex8();
+    } else if cfg!(ex9) {
+        ex9();
     }
 
     enable_paging();
 }
 
 pub fn ex1() {
-    init_paging(PageDirectoryEntry::new_4mb(0 as _, true, true, true), false);
+    init_kernel_paging(PageDirectoryEntry::new_4mb(0 as _, true, true, true), false);
 }
 
 pub fn ex2() {
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4mb(0 as _, true, true, false),
         false,
     );
 }
 
 pub fn ex3() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, true)) }
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false,
     );
 }
 
 pub fn ex4() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, true)) }
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, false),
         false,
     );
 }
 
 pub fn ex5() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, false)) }
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false,
     );
 }
 
 pub fn ex6() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
@@ -81,14 +84,14 @@ pub fn ex6() {
             )
         })
     }
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false, // It matters
     );
 }
 
 pub fn ex7() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
@@ -99,14 +102,14 @@ pub fn ex7() {
             )
         })
     }
-    init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false, // It matters
     );
 }
 
 pub fn ex8() {
-    let pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 1024];
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
@@ -119,16 +122,30 @@ pub fn ex8() {
         })
     }
 
-    let pd = init_paging(
+    init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false,
     );
+    init_user_paging();
+}
 
+pub fn ex9() {
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe {
-        let user_pt = POOL_ALLOCATOR.alloc() as *mut [PageTableEntry; 256];
-        *user_pt = array::from_fn(|i| PageTableEntry::new((1 * 1024 + i) as _, true, true, true));
-
-        let user_pde = PageDirectoryEntry::new_4kb(user_pt as _, true, true, true);
-        (*pd)[1] = user_pde;
+        *pt = array::from_fn(|i| {
+            PageTableEntry::new(
+                i as _,
+                true,
+                true,
+                !(i * PAGE_SIZE <= 0x7000
+                    || (0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x400_000)),
+            )
+        })
     }
+
+    init_kernel_paging(
+        PageDirectoryEntry::new_4kb(pt as _, true, true, true),
+        false,
+    );
+    init_user_paging();
 }

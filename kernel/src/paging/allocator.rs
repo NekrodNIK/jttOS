@@ -1,21 +1,20 @@
 use core::ptr;
 use utils::nullsync;
 
-const CHUNK_SIZE: usize = 4 * 1024;
-
 const ARENA_START: usize = 0x400000;
 unsafe extern "C" {
     static RAM_SIZE: usize;
 }
 
-pub static POOL_ALLOCATOR: nullsync::LazyCell<PoolAllocator<CHUNK_SIZE>> =
-    nullsync::LazyCell::new(|| {
-        PoolAllocator::new(
-            ptr::null_mut(),
-            ARENA_START as _,
-            (unsafe { RAM_SIZE }) as _,
-        )
-    });
+type Pool4K = PoolAllocator<4096>;
+
+pub static POOL4K: nullsync::LazyCell<Pool4K> = nullsync::LazyCell::new(|| {
+    Pool4K::new(
+        ptr::null_mut(),
+        ARENA_START as _,
+        (unsafe { RAM_SIZE }) as _,
+    )
+});
 
 pub struct PoolAllocator<const N: usize> {
     state: nullsync::RefCell<PoolAllocatorState>,
@@ -40,14 +39,14 @@ impl<const N: usize> PoolAllocator<N> {
 
     pub fn alloc(&self) -> *mut u8 {
         let mut state = self.state.borrow_mut();
-        let prev_freed = state.freed as *mut u8;
-        let prev_current = state.current;
 
         unsafe {
-            if !prev_freed.is_null() {
+            if !state.freed.is_null() {
+                let res = state.freed;
                 state.freed = *state.freed as *mut *mut u8;
-                prev_freed
+                res as _
             } else {
+                let res = state.current;
                 state.current = state.current.byte_add(N);
                 if state.current > state.end {
                     panic!(
@@ -58,7 +57,7 @@ impl<const N: usize> PoolAllocator<N> {
                         N, state.current, state.end
                     );
                 }
-                prev_current
+                res as _
             }
         }
     }

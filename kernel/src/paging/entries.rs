@@ -1,22 +1,31 @@
-#[derive(Clone, Copy)]
+use crate::paging::{HugePage, Page};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct PageTableEntry(pub u32);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct PageDirectoryEntry(pub u32);
 
+pub type PageTable = [PageTableEntry; 1024];
+pub type PageDirectory = [PageDirectoryEntry; 1024];
+
 impl PageTableEntry {
-    pub const fn new(index: u32, present: bool, rw: bool, us: bool) -> Self {
-        Self(index << 12 | (us as u32) << 2 | (rw as u32) << 1 | (present as u32))
+    pub fn new(page: *mut Page, present: bool, rw: bool, us: bool) -> Self {
+        Self(page as u32 & (!0 << 12) | (us as u32) << 2 | (rw as u32) << 1 | (present as u32))
     }
 
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self(0)
     }
 
-    pub fn frame_addr(&self) -> u32 {
-        self.0 >> 12
+    pub const fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn page_addr(&self) -> *mut Page {
+        (self.0 & (!0 << 12)) as _
     }
 
     pub fn present(&self) -> bool {
@@ -33,9 +42,9 @@ impl PageTableEntry {
 }
 
 impl PageDirectoryEntry {
-    pub fn new_4kb(pt_addr: *const PageTableEntry, present: bool, rw: bool, us: bool) -> Self {
+    pub fn new_4kb(pt: *mut PageTable, present: bool, rw: bool, us: bool) -> Self {
         Self(
-            (pt_addr as u32) & (!0 << 12)
+            (pt as u32) & (!0 << 12)
                 | 0 << 7
                 | (us as u32) << 2
                 | (rw as u32) << 1
@@ -43,9 +52,9 @@ impl PageDirectoryEntry {
         )
     }
 
-    pub fn new_4mb(frame_addr: *const u8, present: bool, rw: bool, us: bool) -> Self {
+    pub fn new_4mb(page: *mut HugePage, present: bool, rw: bool, us: bool) -> Self {
         Self(
-            (frame_addr as u32) & (!0 << 22)
+            (page as u32) & (!0 << 22)
                 | 1 << 7
                 | (us as u32) << 2
                 | (rw as u32) << 1
@@ -53,12 +62,24 @@ impl PageDirectoryEntry {
         )
     }
 
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self(0)
     }
 
-    pub fn table_addr(&self) -> u32 {
-        self.0
+    pub const fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn pt_addr(&self) -> *mut PageTable {
+        (self.0 & (!0 << 12)) as _
+    }
+
+    pub fn is_huge(&self) -> bool {
+        self.0 & (1 << 7) != 0
+    }
+
+    pub fn huge_page_addr(&self) -> *mut PageTable {
+        (self.0 & (!0 << 12)) as _
     }
 
     pub fn present(&self) -> bool {

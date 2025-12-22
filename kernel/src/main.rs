@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(const_trait_impl)]
 
 extern crate alloc;
 
@@ -28,7 +29,7 @@ use utils::{io::Write, textbuffer::TextBufferWritter};
 
 use crate::{
     gdt::GDT,
-    interrupts::Idt,
+    interrupts::{Idt, InterruptContext},
     tss::TSS,
     x86_utils::{EFlags, tsc_sleep},
 };
@@ -89,7 +90,7 @@ pub fn kmain() {
     if cfg!(labs) {
         lab7::run()
     } else {
-        paging::init_paging(
+        paging::init_kernel_paging(
             paging::PageDirectoryEntry::new_4mb(0 as _, true, true, true),
             true,
         );
@@ -175,6 +176,43 @@ pub fn kmain() {
                 0x800_000 as _,
             );
         }
+    } else if cfg!(ex9) {
+        static mut X: u32 = 0;
+
+        fn user_exit(code: u32) {
+            unsafe {
+                asm!("int 0x30", in("eax") code);
+            }
+        }
+
+        fn syscall_exit(ctx: &mut InterruptContext) {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+
+            unsafe {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", u32::from(X)).unwrap();
+                X += 1
+            }
+
+            jump_to_userspace(
+                || unsafe {
+                    user_exit(X);
+                    loop {}
+                },
+                0x800_000 as _,
+            );
+        }
+
+        interrupts::register_handler(0x30, syscall_exit);
+
+        jump_to_userspace(
+            || unsafe {
+                user_exit(X);
+                loop {}
+            },
+            0x800_000 as _,
+        );
     }
     //
 
