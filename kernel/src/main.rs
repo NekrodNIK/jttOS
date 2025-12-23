@@ -30,6 +30,7 @@ use utils::{io::Write, textbuffer::TextBufferWritter};
 use crate::{
     gdt::GDT,
     interrupts::{Idt, InterruptContext},
+    paging::{disable_paging, enable_paging, enable_user_pages},
     tss::TSS,
     x86_utils::{EFlags, tsc_sleep},
 };
@@ -274,6 +275,65 @@ pub fn kmain() {
         });
 
         jump_to_userspace(user_main, 0x800_000 as _);
+    } else if cfg!(ex11) {
+        const X: usize = 2000;
+
+        fn user_main() {
+            unsafe {
+                asm!(
+                    "mov edi, {}",
+                    "call 2f",
+                    "jmp 3f",
+                    "2:",
+                    "sub esp, 4096",
+                    "test edi, edi",
+                    "jz 3f",
+                    "dec edi",
+                    "call 2b",
+                    "3:",
+                    const X
+                )
+            }
+
+            loop {}
+        }
+
+        fn reload_process() {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+            jump_to_userspace(user_main, 0x800_000 as _);
+        }
+
+        interrupts::register_handler(0xe, interrupts::page_fault_handler);
+        interrupts::register_userspace_npe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "NPE").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_soe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "SOE").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_ub_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "UB").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_stack_endpand_handler(|ctx: &mut InterruptContext| {
+            disable_paging();
+            enable_user_pages(ctx.cr2 as *mut u8);
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "{}", ctx.cr2).unwrap();
+            }
+            enable_paging();
+        });
+
+        jump_to_userspace(user_main, 0x800_000 as _);
     }
     //
 
@@ -312,6 +372,7 @@ pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
             eip: entry as _,
             cs: cs,
             eflags: flags,
+            cr2: 0,
         };
 
         asm!("mov ebx, {}", "jmp {}", in(reg) &ctx,  in(reg) interrupts::pop_ctx);

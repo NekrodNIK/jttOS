@@ -6,8 +6,8 @@ use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
-use crate::x86_utils::{lidt, EFlags};
-use crate::TBW;
+use crate::x86_utils::{EFlags, lidt};
+use crate::{TBW, paging};
 use utils::io::Write;
 
 static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
@@ -18,6 +18,8 @@ static USERSPACE_NPE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
 static USERSPACE_SOE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
     AtomicPtr::new(unhandled_panic as _);
 static USERSPACE_UB_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_STACK_EXPAND_HANDLER: AtomicPtr<fn(&InterruptContext)> =
     AtomicPtr::new(unhandled_panic as _);
 
 pub struct Idt {
@@ -44,6 +46,7 @@ pub struct InterruptDescriptor {
 #[repr(C, align(4))]
 #[derive(Debug, Clone)]
 pub struct InterruptContext {
+    pub cr2: u32,
     pub edi: u32,
     pub esi: u32,
     pub ebp: u32,
@@ -153,6 +156,8 @@ extern "C" fn collect_ctx() {
         "push fs",
         "push gs",
         "pushad",
+        "mov eax, cr2",
+        "push eax",
         // set selectors
         "mov ax, {sel}",
         "mov ds, ax",
@@ -179,6 +184,7 @@ extern "C" fn collect_ctx() {
 pub extern "C" fn pop_ctx() {
     naked_asm!(
         "mov esp, ebx",
+        "pop eax", // cr2
         "popad",
         "pop gs",
         "pop fs",
@@ -252,8 +258,6 @@ pub fn register_handler(index: u8, handler: fn(&mut InterruptContext)) {
 }
 
 pub fn page_fault_handler(ctx: &mut InterruptContext) {
-    let cr2: u32;
-    unsafe { asm!("mov {}, cr2", out(reg) cr2) }
     let us_bit = ctx.errcode & (1 << 2) != 0;
 
     if !us_bit {
@@ -264,11 +268,13 @@ pub fn page_fault_handler(ctx: &mut InterruptContext) {
         NPE,
         SOE,
         UB,
+        GuardPage,
     }
 
-    let user_err = match cr2 {
+    let user_err = match ctx.cr2 {
         0..0x7000 => UserErr::NPE,
-        0x80000..0x400000 => UserErr::SOE,
+        0x80000..0x402000 => UserErr::SOE,
+        0x402000..0x800000 => UserErr::GuardPage,
         _ => UserErr::UB,
     };
 
@@ -276,6 +282,7 @@ pub fn page_fault_handler(ctx: &mut InterruptContext) {
         UserErr::NPE => &USERSPACE_NPE_HANDLER,
         UserErr::SOE => &USERSPACE_SOE_HANDLER,
         UserErr::UB => &USERSPACE_UB_HANDLER,
+        UserErr::GuardPage => &USERSPACE_STACK_EXPAND_HANDLER,
     }
     .load(Ordering::Relaxed);
 
@@ -293,4 +300,8 @@ pub fn register_userspace_soe_handler(handler: fn(&mut InterruptContext)) {
 }
 pub fn register_userspace_ub_handler(handler: fn(&mut InterruptContext)) {
     USERSPACE_UB_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+
+pub fn register_userspace_stack_endpand_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_STACK_EXPAND_HANDLER.store(handler as _, Ordering::Relaxed);
 }

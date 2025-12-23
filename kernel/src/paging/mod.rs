@@ -4,12 +4,15 @@ mod entries;
 use core::arch::asm;
 use core::array;
 use core::ptr;
+use core::sync::atomic::Ordering;
 
 pub use allocator::POOL4K;
 pub use entries::PageDirectoryEntry;
 pub use entries::PageTableEntry;
+use utils::io::Write;
 use utils::nullsync;
 
+use crate::TBW;
 use crate::paging::entries::PageDirectory;
 
 pub const PAGE_SIZE: usize = 4 * 1024;
@@ -73,26 +76,30 @@ pub fn init_kernel_paging(kernel_pde: PageDirectoryEntry, fb_us: bool) {
 pub fn init_user_paging() {
     unsafe {
         let pde = &mut (*PAGE_DIRECTORY)[1];
-        if !pde.is_empty() {
-            let p = if pde.is_huge() {
-                pde.huge_page_addr() as _
-            } else {
-                for pt in (&*pde.pt_addr()).iter() {
-                    if !pt.is_empty() {
-                        POOL4K.free(pt.page_addr() as _);
-                    }
+        if !pde.is_huge() && pde.present() {
+            for pt in (&mut *pde.pt_addr()).iter_mut() {
+                if !pt.is_empty() && pt.present() {
+                    POOL4K.free(pt.page_addr() as _);
+                    *pt = PageTableEntry::new((POOL4K.alloc()) as _, true, true, true);
                 }
-                pde.pt_addr() as _
-            };
-            POOL4K.free(p);
+            }
+        } else {
+            let user_pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
+            for i in 0..1024 {
+                (*user_pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, i == 1024, true, true);
+            }
+            (*pde) = PageDirectoryEntry::new_4kb(user_pt as _, true, true, true);
         }
+    }
+}
 
-        let user_pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-
-        for i in 0..1024 {
-            (*user_pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, true, true, true);
+pub fn enable_user_pages(address: *mut u8) {
+    unsafe {
+        let address = (address as u32) & (!0 << 12);
+        for pte in &mut *(*PAGE_DIRECTORY)[1].pt_addr() {
+            if pte.page_addr() >= address as _ {
+                *pte = PageTableEntry::new(pte.page_addr() as _, true, pte.rw(), pte.us());
+            }
         }
-
-        (*pde) = PageDirectoryEntry::new_4kb(user_pt as _, true, true, true);
     }
 }

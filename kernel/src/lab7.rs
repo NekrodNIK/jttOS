@@ -31,6 +31,8 @@ pub fn run() {
         ex9();
     } else if cfg!(ex10) {
         ex10();
+    } else if cfg!(ex11) {
+        ex11();
     }
 
     enable_paging();
@@ -155,6 +157,27 @@ pub fn ex9() {
 }
 
 pub fn ex10() {
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
+    unsafe {
+        *pt = array::from_fn(|i| {
+            PageTableEntry::new(
+                (i * PAGE_SIZE) as _,
+                true,
+                true,
+                !(i * PAGE_SIZE <= 0x7000
+                    || (0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x400_000)),
+            )
+        })
+    }
+
+    init_kernel_paging(
+        PageDirectoryEntry::new_4kb(pt as _, true, true, true),
+        false,
+    );
+    init_user_paging();
+}
+
+pub fn ex11() {
     let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
     unsafe {
         *pt = array::from_fn(|i| {
