@@ -285,7 +285,7 @@ pub fn kmain() {
 pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
     unsafe {
         if stack.is_null() {
-            stack = Box::into_raw(Box::new([0u8; 4 * 1024])) as _;
+            stack = Box::into_raw(Box::new([0u8; 4 * 1024])).add(4 * 1024) as _;
         }
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
 
@@ -293,7 +293,7 @@ pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
         let ds = 32 | 0b11;
 
         let ctx = InterruptContext {
-            esp: stack.add(4 * 1024) as _,
+            esp: stack as _,
             ss: ds,
             edi: 0,
             esi: 0,
