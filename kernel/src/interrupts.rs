@@ -6,10 +6,19 @@ use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
-use crate::x86_utils::{EFlags, lidt};
+use crate::x86_utils::{lidt, EFlags};
+use crate::TBW;
+use utils::io::Write;
 
 static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
     [const { AtomicPtr::new(unhandled_panic as _) }; 256];
+
+static USERSPACE_NPE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_SOE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_UB_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -240,4 +249,48 @@ fn unhandled_panic(ctx: &InterruptContext) {
 
 pub fn register_handler(index: u8, handler: fn(&mut InterruptContext)) {
     HANDLERS[index as usize].store(handler as _, Ordering::Relaxed);
+}
+
+pub fn page_fault_handler(ctx: &mut InterruptContext) {
+    let cr2: u32;
+    unsafe { asm!("mov {}, cr2", out(reg) cr2) }
+    let us_bit = ctx.errcode & (1 << 2) != 0;
+
+    if !us_bit {
+        unhandled_panic(ctx);
+    }
+
+    enum UserErr {
+        NPE,
+        SOE,
+        UB,
+    }
+
+    let user_err = match cr2 {
+        0..0x7000 => UserErr::NPE,
+        0x80000..0x400000 => UserErr::SOE,
+        _ => UserErr::UB,
+    };
+
+    let handler = match user_err {
+        UserErr::NPE => &USERSPACE_NPE_HANDLER,
+        UserErr::SOE => &USERSPACE_SOE_HANDLER,
+        UserErr::UB => &USERSPACE_UB_HANDLER,
+    }
+    .load(Ordering::Relaxed);
+
+    unsafe {
+        (mem::transmute::<_, fn(&mut InterruptContext)>(handler))(ctx);
+    }
+}
+
+pub fn register_userspace_npe_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_NPE_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+
+pub fn register_userspace_soe_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_SOE_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+pub fn register_userspace_ub_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_UB_HANDLER.store(handler as _, Ordering::Relaxed);
 }

@@ -77,7 +77,7 @@ fn new_tbw() -> utils::textbuffer::TextBufferWritter {
 }
 
 // lab7 code -> DELETE AFTER LAB 7
-static mut TBW: *mut TextBufferWritter = 0 as _; // :(
+static TBW: AtomicPtr<TextBufferWritter> = AtomicPtr::new(0 as _); // :(
 //
 
 pub fn kmain() {
@@ -85,7 +85,6 @@ pub fn kmain() {
     tbw.clear();
 
     // lab7 code -> DELETE AFTER LAB 7
-    static TBW: AtomicPtr<TextBufferWritter> = AtomicPtr::new(0 as _);
     TBW.store(&raw mut tbw, Ordering::Release);
     if cfg!(labs) {
         lab7::run()
@@ -213,6 +212,68 @@ pub fn kmain() {
             },
             0x800_000 as _,
         );
+    } else if cfg!(ex10) {
+        static mut X: u32 = 0;
+        fn user_exit(code: u32) {
+            unsafe {
+                asm!("int 0x30", in("eax") code);
+            }
+        }
+
+        fn user_main() {
+            unsafe {
+                match X % 4 {
+                    0 => user_exit(1),
+                    1 => asm!("mov eax, [0x42]"),
+                    2 => asm!("2: sub esp, 4092", "call 2b"),
+                    3 => *(0x900000 as *mut u32) = 1,
+                    _ => (),
+                }
+            }
+            loop {}
+        }
+
+        fn reload_process() {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+            jump_to_userspace(user_main, 0x800_000 as _);
+        }
+
+        fn syscall_exit(ctx: &mut InterruptContext) {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "{} ", u32::from(X)).unwrap();
+                X += 1
+            }
+
+            reload_process()
+        }
+
+        interrupts::register_handler(0x30, syscall_exit);
+        interrupts::register_handler(0xe, interrupts::page_fault_handler);
+        interrupts::register_userspace_npe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "NPE").unwrap();
+                X += 1
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_soe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "SOE").unwrap();
+                X += 1
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_ub_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "UB").unwrap();
+                X += 1;
+            }
+            reload_process()
+        });
+
+        jump_to_userspace(user_main, 0x800_000 as _);
     }
     //
 

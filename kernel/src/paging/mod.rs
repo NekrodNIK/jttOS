@@ -78,15 +78,21 @@ pub fn init_user_paging() {
                 pde.huge_page_addr() as _
             } else {
                 for pt in (&*pde.pt_addr()).iter() {
-                    POOL4K.free(pt.page_addr() as _);
+                    if !pt.is_empty() {
+                        POOL4K.free(pt.page_addr() as _);
+                    }
                 }
                 pde.pt_addr() as _
             };
             POOL4K.free(p);
         }
 
-        let user_pt = POOL4K.alloc() as *mut [PageTableEntry; 256];
-        *user_pt = array::from_fn(|i| PageTableEntry::new((1 * 1024 + i) as _, true, true, true));
+        let user_pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
+
+        for i in 0..1024 {
+            (*user_pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, true, true, true);
+        }
+
         (*pde) = PageDirectoryEntry::new_4kb(user_pt as _, true, true, true);
     }
 }

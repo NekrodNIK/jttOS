@@ -29,6 +29,8 @@ pub fn run() {
         ex8();
     } else if cfg!(ex9) {
         ex9();
+    } else if cfg!(ex10) {
+        ex10();
     }
 
     enable_paging();
@@ -47,7 +49,7 @@ pub fn ex2() {
 
 pub fn ex3() {
     let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-    unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, true)) }
+    unsafe { *pt = array::from_fn(|i| PageTableEntry::new((i * PAGE_SIZE) as _, true, true, true)) }
     init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false,
@@ -56,7 +58,7 @@ pub fn ex3() {
 
 pub fn ex4() {
     let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-    unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, true)) }
+    unsafe { *pt = array::from_fn(|i| PageTableEntry::new((i * PAGE_SIZE) as _, true, true, true)) }
     init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, false),
         false,
@@ -65,7 +67,9 @@ pub fn ex4() {
 
 pub fn ex5() {
     let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-    unsafe { *pt = array::from_fn(|i| PageTableEntry::new(i as _, true, true, false)) }
+    unsafe {
+        *pt = array::from_fn(|i| PageTableEntry::new((i * PAGE_SIZE) as _, true, true, false))
+    }
     init_kernel_paging(
         PageDirectoryEntry::new_4kb(pt as _, true, true, true),
         false,
@@ -77,7 +81,7 @@ pub fn ex6() {
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
-                i as _,
+                (i * PAGE_SIZE) as _,
                 true,
                 true,
                 !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000), // It doesn't matter, we don't use VGA
@@ -95,7 +99,7 @@ pub fn ex7() {
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
-                i as _,
+                (i * PAGE_SIZE) as _,
                 true,
                 true,
                 !(0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x100000), // It doesn't matter, we don't use VGA
@@ -113,7 +117,7 @@ pub fn ex8() {
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
-                i as _,
+                (i * PAGE_SIZE) as _,
                 true,
                 true,
                 !(i * PAGE_SIZE <= 0x7000
@@ -134,7 +138,28 @@ pub fn ex9() {
     unsafe {
         *pt = array::from_fn(|i| {
             PageTableEntry::new(
-                i as _,
+                (i * PAGE_SIZE) as _,
+                true,
+                true,
+                !(i * PAGE_SIZE <= 0x7000
+                    || (0x80000 <= i * PAGE_SIZE && i * PAGE_SIZE <= 0x400_000)),
+            )
+        })
+    }
+
+    init_kernel_paging(
+        PageDirectoryEntry::new_4kb(pt as _, true, true, true),
+        false,
+    );
+    init_user_paging();
+}
+
+pub fn ex10() {
+    let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
+    unsafe {
+        *pt = array::from_fn(|i| {
+            PageTableEntry::new(
+                (i * PAGE_SIZE) as _,
                 true,
                 true,
                 !(i * PAGE_SIZE <= 0x7000
