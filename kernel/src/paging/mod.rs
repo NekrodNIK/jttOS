@@ -60,7 +60,7 @@ pub fn init_kernel_paging(kernel_pde: PageDirectoryEntry, fb_us: bool) {
         let f_dir = |i| {
             if i == 0 {
                 kernel_pde.clone()
-            } else if fb_start_pde_ind <= i && i < fb_end_pde_ind {
+            } else if fb_start_pde_ind <= i && i <= fb_end_pde_ind {
                 PageDirectoryEntry::new_4mb((i * HUGE_PAGE_SIZE) as _, true, true, fb_us)
             } else {
                 PageDirectoryEntry::empty()

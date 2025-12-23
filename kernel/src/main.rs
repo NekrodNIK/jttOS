@@ -30,7 +30,9 @@ use utils::{io::Write, textbuffer::TextBufferWritter};
 use crate::{
     gdt::GDT,
     interrupts::{Idt, InterruptContext},
-    paging::{disable_paging, enable_paging, enable_user_pages},
+    paging::{
+        disable_paging, enable_paging, enable_user_pages, init_kernel_paging, init_user_paging,
+    },
     tss::TSS,
     x86_utils::{EFlags, tsc_sleep},
 };
@@ -90,10 +92,12 @@ pub fn kmain() {
     if cfg!(labs) {
         lab7::run()
     } else {
-        paging::init_kernel_paging(
+        init_kernel_paging(
             paging::PageDirectoryEntry::new_4mb(0 as _, true, true, true),
             true,
         );
+        init_user_paging();
+        enable_user_pages(0x402_000 as _);
         paging::enable_paging();
     }
     //
@@ -338,15 +342,12 @@ pub fn kmain() {
     //
 
     if !cfg!(labs) {
-        jump_to_userspace(userspace::entry, null_mut());
+        jump_to_userspace(userspace::entry, 0x800_000 as _);
     }
 }
 
-pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
+pub fn jump_to_userspace(entry: fn(), stack: *mut u8) {
     unsafe {
-        if stack.is_null() {
-            stack = Box::into_raw(Box::new([0u8; 4 * 1024])).add(4 * 1024) as _;
-        }
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
 
         let cs = 24 | 0b11;
