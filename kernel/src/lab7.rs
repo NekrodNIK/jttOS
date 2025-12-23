@@ -5,8 +5,8 @@ use crate::{
     interrupts::Idt,
     jump_to_userspace,
     paging::{
-        PAGE_SIZE, POOL4K, PageDirectoryEntry, PageTableEntry, enable_paging, init_kernel_paging,
-        init_user_paging,
+        PAGE_SIZE, POOL4K, PageDirectoryEntry, PageTableEntry, enable_paging, enable_user_pages,
+        init_kernel_paging, init_user_paging,
     },
 };
 
@@ -175,6 +175,7 @@ pub fn ex10() {
         false,
     );
     init_user_paging();
+    enable_user_pages(0x402_000 as _);
 }
 
 pub fn ex11() {
