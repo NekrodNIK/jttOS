@@ -1,4 +1,4 @@
-use core::arch::naked_asm;
+use core::arch::{asm, naked_asm};
 use core::array;
 use core::mem;
 use core::sync::atomic::AtomicPtr;
@@ -38,7 +38,7 @@ pub struct InterruptContext {
     pub edi: u32,
     pub esi: u32,
     pub ebp: u32,
-    pub esp: u32,
+    pub _fill: u32,
     pub ebx: u32,
     pub edx: u32,
     pub ecx: u32,
@@ -55,6 +55,9 @@ pub struct InterruptContext {
     pub eip: u32,
     pub cs: u16,
     pub eflags: EFlags,
+
+    pub esp: u32,
+    pub ss: u16,
 }
 
 impl Idt {
@@ -155,7 +158,17 @@ extern "C" fn collect_ctx() {
         "push ebx",
         "cld",
         "call {handler}",
+        "jmp {ret_handler}",
 
+        sel = const 16,
+        handler = sym global_handler,
+        ret_handler = sym pop_ctx
+    )
+}
+
+#[unsafe(naked)]
+pub extern "C" fn pop_ctx() {
+    naked_asm!(
         "mov esp, ebx",
         "popad",
         "pop gs",
@@ -164,9 +177,6 @@ extern "C" fn collect_ctx() {
         "pop ds",
         "add esp, 8",
         "iretd",
-
-        sel = const 16,
-        handler = sym global_handler,
     )
 }
 

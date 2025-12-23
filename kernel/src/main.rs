@@ -227,24 +227,32 @@ pub fn jump_to_userspace(entry: fn(), mut stack: *mut u8) {
             stack = Box::into_raw(Box::new([0u8; 4 * 1024])) as _;
         }
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
-        asm!(
-            "push {ss}",
-            "push {esp}",
-            "push {eflags}",
-            "push {cs}",
-            "push {eip}",
-            "mov ds, {ds}",
-            "mov es, {ds}",
-            "mov fs, {ds}",
-            "mov gs, {ds}",
-            "iretd",
-            ss = in(reg) 32 | 0b11,
-            esp = in(reg) stack as u32 + 4 * 1024,
-            eflags = in(reg) flags.bits(),
-            cs = in(reg) 24 | 0b11,
-            eip = in(reg) entry,
-            ds = in(reg) 32 | 0b11,
-            options(nostack),
-        );
+
+        let cs = 24 | 0b11;
+        let ds = 32 | 0b11;
+
+        let ctx = InterruptContext {
+            esp: stack.add(4 * 1024) as _,
+            ss: ds,
+            edi: 0,
+            esi: 0,
+            ebp: 0,
+            _fill: 0,
+            ebx: 0,
+            edx: 0,
+            ecx: 0,
+            eax: 0,
+            gs: ds,
+            fs: ds,
+            es: ds,
+            ds: ds,
+            vector: 0,
+            errcode: 0,
+            eip: entry as _,
+            cs: cs,
+            eflags: flags,
+        };
+
+        asm!("mov ebx, {}", "jmp {}", in(reg) &ctx,  in(reg) interrupts::pop_ctx);
     }
 }
