@@ -7,7 +7,7 @@ use crate::{
     device_manager::DEVICES,
     drivers::ps2,
     interrupts::InterruptContext,
-    print,
+    print, println,
     x86_utils::{sti, tsc_sleep},
 };
 
@@ -17,6 +17,7 @@ const WRITE_ERROR: i32 = -3;
 
 pub fn generic_handler(ctx: &mut InterruptContext) {
     ctx.eax = match ctx.eax {
+        1 => exit(ctx.ebx),
         3 => read(),
         4 => {
             if ctx.ebx == 0 {
@@ -35,6 +36,11 @@ pub fn generic_handler(ctx: &mut InterruptContext) {
 
 fn read() -> i32 {
     DEVICES.ps2keyboard.read() as i32
+}
+
+fn exit(code: u32) -> i32 {
+    println!("EXIT WITH CODE: {}", code);
+    0
 }
 
 fn write(buf: &[u8]) -> i32 {

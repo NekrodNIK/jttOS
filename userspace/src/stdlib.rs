@@ -1,7 +1,7 @@
 use crate::main;
 use core::arch::{asm, naked_asm};
 use core::panic::PanicInfo;
-use core::{fmt, slice};
+use core::{ffi, fmt, slice};
 use utils::io::Write;
 
 pub const SYSCALL_EXIT: u32 = 0x1;
@@ -131,7 +131,7 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     ($($arg:tt)*) => {
-        print!($($arg)*)
+        print!("{}\n", format_args!($($arg)*))
     };
 }
 

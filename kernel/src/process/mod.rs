@@ -1,12 +1,16 @@
+mod errors;
+pub use errors::pagefault_handler;
+
 use crate::{
     gdt::{USER_CS, USER_DS},
     interrupts::{self, InterruptContext},
-    paging,
+    paging::{self, POOL4K},
+    process,
     x86_utils::EFlags,
 };
 use core::arch::asm;
 
-const STACK: *mut u8 = 0x800_000 as _;
+const STACK_START: *mut u8 = 0x800_000 as _;
 
 pub struct Process {
     pub pid: u32,
@@ -29,17 +33,16 @@ impl Process {
         }
     }
 
-    pub fn run(&self) {
-        // paging::disable_paging();
-        // paging::init_user_paging();
-        // paging::enable_user_pages(0x400_000 as _);
-        // paging::enable_paging();
+    pub fn run(&self, args: &[&[u8]]) {
+        paging::disable_paging();
+        paging::init_user_paging();
+        let (argc, argv) = paging::init_args_pages(args);
+        paging::enable_paging();
+        interrupts::register_handler(0xe, process::pagefault_handler);
 
-        jump_to_userspace(self.entry, 1, NAME.as_ptr() as _, STACK);
+        jump_to_userspace(self.entry, argc, argv, STACK_START);
     }
 }
-
-static NAME: &'static [&'static [u8]] = &[b"bin"];
 
 pub fn jump_to_userspace(entry: fn(), argc: u32, argv: *const *const u8, stack: *mut u8) {
     let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);

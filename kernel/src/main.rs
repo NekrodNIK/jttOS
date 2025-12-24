@@ -37,14 +37,15 @@ use crate::{
 };
 
 macro_rules! print {
-    ($($arg:tt)*) => {
+    ($($arg:tt)*) => {{
+        use utils::io::Write;
         write!($crate::TBW.borrow_mut(), $($arg)*).unwrap()
-    };
+    }};
 }
 
 macro_rules! println {
     ($($arg:tt)*) => {
-        writeln!($crate::TBW.borrow_mut(), $($arg)*).unwrap()
+        $crate::print!("{}\n", format_args!($($arg)*));
     };
 }
 
@@ -93,11 +94,8 @@ static TBW: nullsync::Marker<LazyCell<RefCell<TextBufferWritter>>> =
 pub fn kmain() {
     TBW.borrow_mut().clear();
 
-    // init_kernel_paging(
-    //     paging::PageDirectoryEntry::new_4mb(0 as _, true, true, true),
-    //     true,
-    // );
-    // paging::enable_paging();
+    paging::init_kernel_paging();
+    paging::enable_paging();
     info!("Paging enabled");
 
     let mut idt = Idt::new();
@@ -130,6 +128,6 @@ pub fn kmain() {
 
     TBW.borrow_mut().clear();
 
-    let process = Process::new(as_fn(0x20_000 as _));
-    process.run();
+    let process = Process::new(as_fn(0x800000 as _));
+    process.run(&[b"binary\0", b"-f\0", b"some\0", b"\0"]);
 }

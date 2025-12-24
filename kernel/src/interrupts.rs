@@ -198,7 +198,7 @@ extern "C" fn global_handler(ctx: *const InterruptContext) {
     }
 }
 
-fn unhandled_panic(ctx: &InterruptContext) {
+pub fn unhandled_panic(ctx: &InterruptContext) {
     panic!(
         concat!(
             "unhandled interrupt #{} at {:#x}:{:#x}\n",
