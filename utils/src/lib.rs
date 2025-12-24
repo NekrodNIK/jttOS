@@ -6,3 +6,7 @@ pub mod key;
 pub mod nullsync;
 pub mod ringbuf;
 pub mod textbuffer;
+
+pub fn as_fn(address: *const u8) -> fn() {
+    unsafe { core::mem::transmute(address) }
+}

@@ -2,7 +2,7 @@ use ::core::cell;
 use ::core::ops::Deref;
 
 #[repr(transparent)]
-struct Marker<T>(T);
+pub struct Marker<T>(T);
 
 #[repr(transparent)]
 pub struct LazyCell<T> {
@@ -15,6 +15,12 @@ pub struct RefCell<T> {
 }
 
 unsafe impl<T> Sync for Marker<T> {}
+
+impl<T> Marker<T> {
+    pub const fn new(value: T) -> Self {
+        Self(value)
+    }
+}
 
 impl<T> LazyCell<T> {
     pub const fn new(f: fn() -> T) -> Self {
@@ -29,6 +35,13 @@ impl<T> RefCell<T> {
         Self {
             data: Marker(cell::RefCell::new(value)),
         }
+    }
+}
+
+impl<T> Deref for Marker<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

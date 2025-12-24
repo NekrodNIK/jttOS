@@ -3,16 +3,24 @@ TMP_DIR=.tmp
 all: clean build test
 
 $(TMP_DIR)/kernel.elf:
-	cargo build
-	cp target/i386/debug/kernel $@
+	cargo build --release --package=kernel
+	cp target/i386/release/kernel $@
+	
+$(TMP_DIR)/userspace.elf:
+	cargo build --release --package=userspace
+	cp target/i386/release/userspace $@
 
 $(TMP_DIR)/kernel.bin: $(TMP_DIR)/kernel.elf
 	objcopy -O binary $< $@
 
-os.img: $(TMP_DIR)/kernel.bin
-	dd if=/dev/zero of=os.img bs=1024 count=1440
-	dd if=$< of=os.img conv=notrunc
+$(TMP_DIR)/userspace.bin: $(TMP_DIR)/userspace.elf
+	objcopy -O binary $< $@
 
+os.img: $(TMP_DIR)/kernel.bin $(TMP_DIR)/userspace.bin
+	dd if=/dev/zero of=os.img bs=1024 count=1440
+	dd if=$(word 1, $^) of=os.img conv=notrunc
+	dd if=$(word 2, $^) of=os.img conv=notrunc oflag=seek_bytes seek=99328
+	
 build: os.img
 
 clean:

@@ -3,13 +3,11 @@ name = "userspace"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
+[[bin]]
+name = "userspace"
+build = "build.rs"
 test = false
 bench = false
 
 [dependencies]
 utils = { path = "../utils" }
-
-[build-dependencies]
-cc = "1.2.49"
-

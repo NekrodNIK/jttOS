@@ -4,15 +4,11 @@ mod entries;
 use core::arch::asm;
 use core::array;
 use core::ptr;
-use core::sync::atomic::Ordering;
 
 pub use allocator::POOL4K;
 pub use entries::PageDirectoryEntry;
 pub use entries::PageTableEntry;
-use utils::io::Write;
-use utils::nullsync;
 
-use crate::TBW;
 use crate::paging::entries::PageDirectory;
 
 pub const PAGE_SIZE: usize = 4 * 1024;

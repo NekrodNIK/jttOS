@@ -11,7 +11,6 @@ bench = false
 
 [dependencies]
 bitflags = "2.9.4"
-userspace = { path = "../userspace" }
 utils = { path = "../utils" }
 
 [package.metadata.build-script]
