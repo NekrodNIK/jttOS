@@ -138,7 +138,7 @@ macro_rules! println {
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 extern "C" fn _start() {
-    naked_asm!("push eax", "push ecx", "call {}", sym start);
+    naked_asm!("push ecx", "push eax", "call {}", sym start);
 }
 
 extern "C" fn start(argc: u32, argv: *const *const u8) -> ! {

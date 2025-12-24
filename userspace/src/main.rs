@@ -3,7 +3,7 @@
 
 mod stdlib;
 
-pub fn main(_args: &[&str]) {
-    println!("Hello world!");
+pub fn main(args: &[&str]) {
+    println!("Hello user! argc: {}, argv: {:?}", args.len(), args);
     loop {}
 }

@@ -35,11 +35,13 @@ impl Process {
         // paging::enable_user_pages(0x400_000 as _);
         // paging::enable_paging();
 
-        jump_to_userspace(self.entry, STACK);
+        jump_to_userspace(self.entry, 1, NAME.as_ptr() as _, STACK);
     }
 }
 
-pub fn jump_to_userspace(entry: fn(), stack: *mut u8) {
+static NAME: &'static [&'static [u8]] = &[b"bin"];
+
+pub fn jump_to_userspace(entry: fn(), argc: u32, argv: *const *const u8, stack: *mut u8) {
     let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
 
     let ctx = InterruptContext {
@@ -51,8 +53,8 @@ pub fn jump_to_userspace(entry: fn(), stack: *mut u8) {
         _fill: 0,
         ebx: 0,
         edx: 0,
-        ecx: 0,
-        eax: 0,
+        ecx: argv as _,
+        eax: argc,
         gs: USER_DS,
         fs: USER_DS,
         es: USER_DS,
