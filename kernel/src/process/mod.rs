@@ -19,6 +19,8 @@ use core::{
     ptr::{null, null_mut},
 };
 
+pub use process::errors::user_global_handler;
+
 pub const VIRT_START: *mut u8 = 0x800_000 as _;
 
 pub static mut PROCESSES: nullsync::LazyCell<[Process; 4]> = nullsync::LazyCell::new(|| {
@@ -123,8 +125,6 @@ impl Process {
         paging::disable_paging();
         paging::init_stack_pages(self.pd);
         let (argc, argv) = paging::init_args_pages(self.pd, args);
-
-        interrupts::register_handler(0xe, process::pagefault_handler);
 
         self.ctx.eax = argc;
         self.ctx.ecx = argv as _;

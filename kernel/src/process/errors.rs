@@ -8,13 +8,16 @@ use crate::{
 
 use utils::io::Write;
 
+pub fn user_global_handler(ctx: &mut InterruptContext) {
+    match ctx.vector {
+        0xe => pagefault_handler(ctx),
+        _ => unexpected_error_handler(ctx),
+    }
+}
+
 pub fn pagefault_handler(ctx: &mut InterruptContext) {
     let us_bit = ctx.errcode & (1 << 2) != 0;
     debug_assert!(us_bit == (ctx.cs & 0b11 != 0));
-
-    if !us_bit {
-        interrupts::unhandled_panic(ctx);
-    }
 
     enum UserErr {
         NPE,
@@ -33,7 +36,7 @@ pub fn pagefault_handler(ctx: &mut InterruptContext) {
     let handler = match user_err {
         UserErr::NPE => npe_handler,
         UserErr::SOE => soe_handler,
-        UserErr::UB => ub_handler,
+        UserErr::UB => unexpected_error_handler,
         UserErr::GuardPage => stack_expand_handler,
     };
     handler(ctx)
@@ -69,4 +72,12 @@ pub fn stack_expand_handler(ctx: &mut InterruptContext) {
     tsc_sleep(1);
     paging::enable_stack_pages(process.pd, ctx.cr2);
     paging::enable_paging(process.pd);
+}
+
+pub fn unexpected_error_handler(ctx: &mut InterruptContext) {
+    let process = get_cur_process();
+    writeln!(process.tbw, "Unexpected error").unwrap();
+    process.kill();
+    sti();
+    loop {}
 }

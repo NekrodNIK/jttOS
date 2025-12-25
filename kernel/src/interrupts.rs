@@ -6,9 +6,10 @@ use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
+use crate::process::user_global_handler;
 use crate::x86_utils::{EFlags, lidt};
 
-static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
+static HANDLERS: [AtomicPtr<fn(&mut InterruptContext)>; 256] =
     [const { AtomicPtr::new(unhandled_panic as _) }; 256];
 
 pub struct Idt {
@@ -184,21 +185,25 @@ pub extern "C" fn pop_ctx() {
     )
 }
 
-extern "C" fn global_handler(ctx: *const InterruptContext) {
+extern "C" fn global_handler(ctx: *mut InterruptContext) {
     if ctx.is_null() {
         panic!("Invalid context passed to global interrupt handler")
     }
 
-    let ctx = unsafe { &*ctx };
+    let mut ctx = unsafe { &mut *ctx };
+    let us_bit = ctx.errcode & (1 << 2) != 0;
+    if us_bit {
+        return user_global_handler(&mut ctx);
+    }
 
     unsafe {
-        (mem::transmute::<_, fn(&InterruptContext)>(
+        (mem::transmute::<_, fn(&mut InterruptContext)>(
             HANDLERS[ctx.vector as usize].load(Ordering::Relaxed),
         ))(ctx);
     }
 }
 
-pub fn unhandled_panic(ctx: &InterruptContext) {
+pub fn unhandled_panic(ctx: &mut InterruptContext) {
     panic!(
         concat!(
             "unhandled interrupt #{} at {:#x}:{:#x}\n",
