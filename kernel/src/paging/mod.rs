@@ -20,8 +20,6 @@ pub const HUGE_PAGE_SIZE: usize = 4 * 1024 * 1024;
 pub type Page = [u8; PAGE_SIZE];
 pub type HugePage = [u8; HUGE_PAGE_SIZE];
 
-pub static mut PAGE_DIRECTORY: *mut PageDirectory = ptr::null_mut();
-
 pub fn init_paging_regs() {
     unsafe {
         asm!(
@@ -88,10 +86,28 @@ pub fn init_kernel_paging() -> *mut PageDirectory {
     pd
 }
 
+pub fn init_code_pages(pd: *mut PageDirectory, phys: *mut u8) {
+    unsafe {
+        let pde2 = &mut (*pd)[2];
+        if pde2.is_empty() {
+            let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
+            for i in 0..16 {
+                (*pt)[i] =
+                    PageTableEntry::new((phys as usize + i * PAGE_SIZE) as _, true, true, true)
+            }
+
+            for i in 16..1024 {
+                (*pt)[i] = PageTableEntry::empty();
+            }
+
+            (*pde2) = PageDirectoryEntry::new_4kb(pt as _, true, true, true);
+        }
+    }
+}
+
 pub fn init_stack_pages(pd: *mut PageDirectory) {
     unsafe {
         let pde1 = &mut (*pd)[1];
-        let pde2 = &mut (*pd)[2];
 
         if pde1.is_empty() {
             let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
@@ -106,19 +122,6 @@ pub fn init_stack_pages(pd: *mut PageDirectory) {
                     *pt = PageTableEntry::new((POOL4K.alloc()) as _, true, true, true);
                 }
             }
-        }
-
-        if pde2.is_empty() {
-            let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-            for i in 0..16 {
-                (*pt)[i] = PageTableEntry::new((0x20000 + i * PAGE_SIZE) as _, true, true, true)
-            }
-
-            for i in 16..1024 {
-                (*pt)[i] = PageTableEntry::empty();
-            }
-
-            (*pde2) = PageDirectoryEntry::new_4kb(pt as _, true, true, true);
         }
     }
 }

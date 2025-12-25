@@ -16,25 +16,27 @@ use crate::{
 use core::{
     arch::asm,
     cell::{LazyCell, RefCell},
+    ptr::{null, null_mut},
 };
+
+pub const VIRT_START: *mut u8 = 0x800_000 as _;
 
 pub static mut PROCESSES: nullsync::LazyCell<[Process; 4]> = nullsync::LazyCell::new(|| {
     [
-        template_process(0x800_000, 0, 0, 2, 2),
-        template_process(0x810_000, 1, 0, 2, 2),
-        template_process(0x820_000, 0, 1, 2, 2),
-        template_process(0x830_000, 1, 0, 2, 2),
+        template_process(0, 0x20000, 0, 0, 2, 2),
+        template_process(1, 0x30000, 1, 0, 2, 2),
+        template_process(2, 0x40000, 0, 1, 2, 2),
+        template_process(3, 0x50000, 1, 1, 2, 2),
     ]
 });
+pub static mut CUR_PROCCESS: usize = 1;
 
-pub fn get_process(pid: u32) -> Option<&'static mut Process> {
-    match pid {
-        0..3 => Some(unsafe { &mut PROCESSES[pid as usize] }),
-        _ => None,
-    }
+pub fn get_cur_process() -> &'static mut Process {
+    unsafe { &mut PROCESSES[CUR_PROCCESS] }
 }
 
 pub fn template_process(
+    pid: usize,
     addr: usize,
     x: usize,
     y: usize,
@@ -53,35 +55,28 @@ pub fn template_process(
         height: split_y,
     });
 
-    Process::new(as_fn(addr as _), TextBufferWritter::new(process_tb))
+    Process::new(pid, addr as _, TextBufferWritter::new(process_tb))
 }
 
 pub struct Process {
-    pub pid: u32,
-    pub state: u8,
-    pub entry: fn(),
+    pub pid: usize,
     pub tbw: TextBufferWritter,
     pub ctx: InterruptContext,
     pub pd: *mut paging::PageDirectory,
 }
 
-static mut CUR_MAX_PID: u32 = 0;
-
 impl Process {
-    pub fn new(entry: fn(), tbw: TextBufferWritter) -> Self {
+    pub fn new(pid: usize, phys_start: *mut u8, tbw: TextBufferWritter) -> Self {
+        let pd = paging::init_kernel_paging();
+        paging::init_code_pages(pd, phys_start);
+
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
 
         Self {
-            pid: unsafe {
-                let res = CUR_MAX_PID;
-                CUR_MAX_PID += 1;
-                res
-            },
-            state: 0,
-            entry: entry,
+            pid,
             tbw,
             ctx: InterruptContext {
-                esp: entry as _,
+                esp: VIRT_START as _,
                 ss: USER_DS,
                 edi: 0,
                 esi: 0,
@@ -97,25 +92,28 @@ impl Process {
                 ds: USER_DS,
                 vector: 0,
                 errcode: 0,
-                eip: entry as _,
+                eip: VIRT_START as _,
                 cs: USER_CS,
                 eflags: flags,
                 cr2: 0,
             },
-            pd: unsafe { paging::PAGE_DIRECTORY },
+            pd,
         }
     }
 
-    pub fn run(&mut self, args: &[&[u8]]) {
+    pub fn run(&mut self, args: &[&[u8]]) -> ! {
         self.init(args);
         self.jump()
     }
 
-    pub fn kill(&mut self) -> ! {
+    pub fn kill(&mut self) {
         paging::disable_paging();
         // paging::delete_process_pages(self.pd);
-        self.init(&[b"smth"]);
-        self.jump();
+    }
+
+    pub fn respawn(&mut self) -> ! {
+        self.kill();
+        self.run(&[b"smth"]);
     }
 
     pub fn init(&mut self, args: &[&[u8]]) {
@@ -133,6 +131,7 @@ impl Process {
         paging::enable_paging(self.pd);
         let stack_ctx = self.ctx.clone();
         unsafe {
+            CUR_PROCCESS = self.pid;
             asm!("mov ebx, {}", "jmp {}", in(reg) &stack_ctx, in(reg) interrupts::pop_ctx, options(noreturn, nostack));
         }
     }

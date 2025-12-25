@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(const_trait_impl)]
 
 extern crate alloc;
 
@@ -31,7 +30,7 @@ use utils::{io::Write, textbuffer::TextBufferRegion};
 use crate::{
     gdt::GDT,
     interrupts::Idt,
-    process::{PROCESSES, Process},
+    process::{CUR_PROCCESS, PROCESSES, Process},
     tss::TSS,
     x86_utils::{EFlags, cli, sti, tsc_sleep},
 };
@@ -94,12 +93,6 @@ static TBW: nullsync::Marker<LazyCell<RefCell<TextBufferWritter>>> =
 pub fn kmain() {
     TBW.borrow_mut().clear();
 
-    unsafe {
-        paging::PAGE_DIRECTORY = paging::init_kernel_paging();
-        paging::enable_paging(paging::PAGE_DIRECTORY);
-    }
-    info!("Paging enabled");
-
     let mut idt = Idt::new();
     idt.load();
     info!("IDT loaded");
@@ -123,10 +116,6 @@ pub fn kmain() {
 
     println!(include_str!("logo.txt"));
     println!("Press any key...");
-
-    while DEVICES.ps2keyboard.read() == 0 {
-        tsc_sleep(10000)
-    }
 
     TBW.borrow_mut().clear();
 

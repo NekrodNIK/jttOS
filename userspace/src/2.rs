@@ -4,11 +4,11 @@
 mod stdlib;
 use core::hint::black_box;
 
-pub fn main(args: &[*const u8]) {
+pub fn main(_args: &[*const u8]) {
     program2(0);
-    loop {}
 }
 
+#[allow(unconditional_recursion)]
 fn program2(total: usize) {
     println!("Stack usage: {} KB", total);
     let _ = black_box([0u8; 4 * 1024]);

@@ -9,7 +9,7 @@ use crate::{
     drivers::ps2,
     interrupts::InterruptContext,
     print, println,
-    process::{self, PROCESSES, get_process},
+    process::get_cur_process,
     x86_utils::{sti, tsc_sleep},
 };
 
@@ -42,13 +42,14 @@ fn read() -> i32 {
 }
 
 fn exit(code: u32) -> ! {
-    let process = get_process(0).unwrap();
+    let process = get_cur_process();
     write!(process.tbw, "EXIT WITH CODE {}\n", code).unwrap();
     process.kill();
+    loop {}
 }
 
 fn write(buf: &[u8]) -> i32 {
-    match get_process(0).unwrap().tbw.write(buf) {
+    match get_cur_process().tbw.write(buf) {
         Ok(count) => count as _,
         Err(_) => WRITE_ERROR,
     }

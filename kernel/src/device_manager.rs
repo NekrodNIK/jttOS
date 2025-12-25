@@ -1,6 +1,10 @@
 use crate::{
     TBW,
-    drivers::{pic8259, pit, ps2},
+    drivers::{
+        pic8259,
+        pit::{self, MAX_FREQ},
+        ps2,
+    },
     interrupts,
 };
 use utils::io::Write;
