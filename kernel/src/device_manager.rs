@@ -39,7 +39,7 @@ impl DeviceManager {
         self.pic.enable_device(1);
         crate::info!("PS2 controller initializated");
 
-        // self.pit.init(30);
+        self.pit.init(10000);
         crate::info!("PIT initializated");
 
         TBW.borrow_mut().set_next_fg(0x00ffff00);

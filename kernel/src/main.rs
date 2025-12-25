@@ -117,10 +117,14 @@ pub fn kmain() {
     println!(include_str!("logo.txt"));
     println!("Press any key...");
 
+    while DEVICES.ps2keyboard.read() == 0 {
+        tsc_sleep(1000);
+    }
+
     TBW.borrow_mut().clear();
 
     unsafe {
-        PROCESSES[0].init(&[b"binary\0", b"--flag=true\0", b"src.c\0", b"a.out\0"]);
+        PROCESSES[0].init(&[b"binary\0", b"--flag=true\0", b"src.c\0", b"a.out\0", b"\0"]);
         PROCESSES[1].init(&[]);
         PROCESSES[2].init(&[]);
         PROCESSES[3].init(&[]);

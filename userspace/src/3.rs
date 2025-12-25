@@ -4,5 +4,9 @@
 mod stdlib;
 
 pub fn main(_args: &[*const u8]) {
-    println!("Hello user!");
+    let mut x = 0;
+    loop {
+        print!("{} ", x);
+        x += 1;
+    }
 }
