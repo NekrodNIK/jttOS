@@ -23,10 +23,10 @@ use core::{
     mem,
 };
 use device_manager::DEVICES;
-use utils::io::Write;
 use utils::nullsync;
 use utils::textbuffer::TextBufferWritter;
 use utils::{as_fn, textbuffer::TextBuffer};
+use utils::{io::Write, textbuffer::TextBufferRegion};
 
 use crate::{
     gdt::GDT,
