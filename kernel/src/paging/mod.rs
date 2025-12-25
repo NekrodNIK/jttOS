@@ -42,7 +42,6 @@ pub fn enable_paging(pd: *mut PageDirectory) {
 pub fn disable_paging() {
     unsafe {
         asm!("mov eax, cr0", "and eax, ~(1 << 31)", "mov cr0, eax");
-        tsc_sleep(1);
     }
 }
 

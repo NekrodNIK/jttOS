@@ -11,7 +11,7 @@ use crate::{
     interrupts::{self, InterruptContext},
     paging::{self, POOL4K},
     println, process,
-    x86_utils::{EFlags, cli},
+    x86_utils::{EFlags, cli, tsc_sleep},
 };
 use core::{
     arch::asm,
@@ -110,7 +110,7 @@ impl Process {
 
     pub fn kill(&mut self) {
         paging::disable_paging();
-        // paging::delete_process_pages(self.pd);
+        paging::delete_process_pages(self.pd);
         self.alive = false;
     }
 
