@@ -1,7 +1,11 @@
 use crate::{
+    TBW,
     interrupts::{self, InterruptContext},
     paging, println,
+    process::get_process,
 };
+
+use utils::io::Write;
 
 pub fn pagefault_handler(ctx: &mut InterruptContext) {
     let us_bit = ctx.errcode & (1 << 2) != 0;
@@ -34,21 +38,28 @@ pub fn pagefault_handler(ctx: &mut InterruptContext) {
     handler(ctx)
 }
 
-//
 pub fn npe_handler(ctx: &mut InterruptContext) {
-    println!("NPE");
+    let process = get_process(0).unwrap();
+    writeln!(process.tbw, "NPE").unwrap();
+    process.kill();
 }
 
 pub fn soe_handler(ctx: &mut InterruptContext) {
-    println!("SOE");
+    let process = get_process(0).unwrap();
+    writeln!(process.tbw, "SOE").unwrap();
+    process.kill();
 }
 
 pub fn ub_handler(ctx: &mut InterruptContext) {
-    println!("UB");
+    let process = get_process(0).unwrap();
+    writeln!(process.tbw, "UB").unwrap();
+    process.kill();
 }
 
 pub fn stack_expand_handler(ctx: &mut InterruptContext) {
     unsafe {
+        let process = get_process(0).unwrap();
+        writeln!(process.tbw, "{}", ctx.cr2).unwrap();
         paging::disable_paging();
         paging::enable_stack_pages(paging::PAGE_DIRECTORY, ctx.cr2 as *mut u8);
         paging::enable_paging(paging::PAGE_DIRECTORY);

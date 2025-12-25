@@ -2,21 +2,10 @@
 #![no_main]
 
 mod stdlib;
+use core::arch::asm;
 
 pub fn main(args: &[*const u8]) {
-    println!("Hello user!\n");
-    for s in args {
-        let mut p = *s;
-        unsafe {
-            while *p != 0 {
-                print!("{}", *p as char);
-                p = p.add(1);
-            }
-        }
-        println!("");
-    }
+    unsafe { asm!("2: sub esp, 4*1024", "call 2b") }
 
-    // for i in 0.. {
-    //     print!("{} ", i);
-    // }
+    loop {}
 }

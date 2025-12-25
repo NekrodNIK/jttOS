@@ -43,9 +43,8 @@ fn read() -> i32 {
 
 fn exit(code: u32) -> ! {
     let process = get_process(0).unwrap();
-    process.kill();
     write!(process.tbw, "EXIT WITH CODE {}\n", code).unwrap();
-    loop {}
+    process.kill();
 }
 
 fn write(buf: &[u8]) -> i32 {

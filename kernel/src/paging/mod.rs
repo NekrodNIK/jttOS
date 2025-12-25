@@ -68,14 +68,7 @@ pub fn init_kernel_paging() -> *mut PageDirectory {
         &mut *(*pd)[0].pt_addr()
     };
 
-    *pt0 = array::from_fn(|i| {
-        PageTableEntry::new(
-            (i * PAGE_SIZE) as _,
-            true,
-            true,
-            (..0x7000).contains(&(i * PAGE_SIZE)) || (0x80000..0x400000).contains(&(i * PAGE_SIZE)),
-        )
-    });
+    *pt0 = array::from_fn(|i| PageTableEntry::new((i * PAGE_SIZE) as _, true, true, false));
 
     init_fb_paging(pd);
     init_paging_regs();
@@ -84,13 +77,13 @@ pub fn init_kernel_paging() -> *mut PageDirectory {
 
 pub fn init_stack_pages(pd: *mut PageDirectory) {
     unsafe {
-        let pde1 = &mut (*PAGE_DIRECTORY)[1];
-        let pde2 = &mut (*PAGE_DIRECTORY)[2];
+        let pde1 = &mut (*pd)[1];
+        let pde2 = &mut (*pd)[2];
 
         if pde1.is_empty() {
             let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
             for i in 0..1024 {
-                (*pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, i == 1024, true, true);
+                (*pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, i == 1023, true, true);
             }
             (*pde1) = PageDirectoryEntry::new_4kb(pt as _, true, true, true);
         } else if pde1.present() && !pde1.pt_addr().is_null() {
@@ -104,13 +97,12 @@ pub fn init_stack_pages(pd: *mut PageDirectory) {
 
         if pde2.is_empty() {
             let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-            for i in 0..1024 {
-                (*pt)[i] = PageTableEntry::new(
-                    (0x20000 + i * PAGE_SIZE) as _,
-                    (0..16).contains(&i),
-                    true,
-                    true,
-                )
+            for i in 0..16 {
+                (*pt)[i] = PageTableEntry::new((0x20000 + i * PAGE_SIZE) as _, true, true, true)
+            }
+
+            for i in 16..1024 {
+                (*pt)[i] = PageTableEntry::empty();
             }
 
             (*pde2) = PageDirectoryEntry::new_4kb(pt as _, true, true, true);
@@ -119,16 +111,23 @@ pub fn init_stack_pages(pd: *mut PageDirectory) {
 }
 
 pub fn delete_process_pages(pd: *mut PageDirectory) {
-    let pt1 = unsafe { &mut *(*pd)[2].pt_addr() };
+    let pt1 = unsafe { &mut *(*pd)[1].pt_addr() };
     let pt2 = unsafe { &mut *(*pd)[2].pt_addr() };
 
     for pte in pt1.iter() {
-        POOL4K.free(pte.page_addr() as _);
+        if !pte.page_addr().is_null() && pte.present() {
+            POOL4K.free(pte.page_addr() as _);
+        }
     }
     POOL4K.free(&raw mut *pt1 as _);
+    unsafe {
+        (*pd)[1] = PageDirectoryEntry::empty();
+    }
 
-    for i in 16..1023 {
-        POOL4K.free(pt2[i].page_addr() as _);
+    for i in 16..1024 {
+        if !pt2[i].page_addr().is_null() && pt2[i].present() {
+            POOL4K.free(pt2[i].page_addr() as _);
+        }
     }
 }
 
@@ -157,12 +156,10 @@ pub fn init_args_pages(pd: *mut PageDirectory, user_args: &[&[u8]]) -> (u32, *co
 }
 
 pub fn enable_stack_pages(pd: *mut PageDirectory, address: *mut u8) {
-    unsafe {
-        let address = (address as u32) & (!0 << 12);
-        for pte in &mut *(*pd)[1].pt_addr() {
-            if pte.page_addr() >= address as _ {
-                *pte = PageTableEntry::new(pte.page_addr() as _, true, pte.rw(), pte.us());
-            }
-        }
+    let pt1 = unsafe { &mut *(*pd)[1].pt_addr() };
+    let index = ((address as usize) & (0x3ff << 12)) >> 12;
+
+    for i in index..1023 {
+        pt1[i] = PageTableEntry::new(pt1[i].page_addr(), true, pt1[i].rw(), pt1[i].us());
     }
 }

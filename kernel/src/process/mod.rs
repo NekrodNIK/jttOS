@@ -10,7 +10,7 @@ use crate::{
     gdt::{USER_CS, USER_DS},
     interrupts::{self, InterruptContext},
     paging::{self, POOL4K},
-    process,
+    println, process,
     x86_utils::EFlags,
 };
 use core::{
@@ -111,9 +111,11 @@ impl Process {
         self.jump()
     }
 
-    pub fn kill(&mut self) {
+    pub fn kill(&mut self) -> ! {
         paging::disable_paging();
         paging::delete_process_pages(self.pd);
+        self.init(&[b"smth"]);
+        self.jump();
     }
 
     pub fn init(&mut self, args: &[&[u8]]) {
@@ -127,11 +129,11 @@ impl Process {
         self.ctx.ecx = argv as _;
     }
 
-    pub fn jump(&self) {
+    pub fn jump(&self) -> ! {
         paging::enable_paging(self.pd);
         let stack_ctx = self.ctx.clone();
         unsafe {
-            asm!("mov ebx, {}", "jmp {}", in(reg) &stack_ctx, in(reg) interrupts::pop_ctx);
+            asm!("mov ebx, {}", "jmp {}", in(reg) &stack_ctx, in(reg) interrupts::pop_ctx, options(noreturn, nostack));
         }
     }
 }
