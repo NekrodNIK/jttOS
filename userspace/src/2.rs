@@ -11,6 +11,6 @@ pub fn main(_args: &[*const u8]) {
 #[allow(unconditional_recursion)]
 fn program2(total: usize) {
     println!("Stack usage: {} KB", total);
-    let _ = black_box([0u8; 4 * 1024]);
-    program2(total + 4)
+    let _ = black_box([0u8; 1024]);
+    program2(total + 1)
 }

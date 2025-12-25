@@ -10,7 +10,7 @@ use crate::{
     interrupts::InterruptContext,
     print, println,
     process::get_cur_process,
-    x86_utils::{sti, tsc_sleep},
+    x86_utils::{cli, sti, tsc_sleep},
 };
 
 const INVALID_ARGS: i32 = -1;
@@ -45,6 +45,7 @@ fn exit(code: u32) -> ! {
     let process = get_cur_process();
     write!(process.tbw, "EXIT WITH CODE {}\n", code).unwrap();
     process.kill();
+    sti();
     loop {}
 }
 

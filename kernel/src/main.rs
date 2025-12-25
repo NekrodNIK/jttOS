@@ -119,5 +119,25 @@ pub fn kmain() {
 
     TBW.borrow_mut().clear();
 
-    unsafe { PROCESSES[0].run(&[b"binary\0", b"-f\0", b"some\0", b"\0"]) };
+    unsafe {
+        PROCESSES[0].init(&[b"binary\0", b"--flag=true\0", b"src.c\0", b"a.out\0"]);
+        PROCESSES[1].init(&[]);
+        PROCESSES[2].init(&[]);
+        PROCESSES[3].init(&[]);
+
+        interrupts::register_handler(0x20, |ctx| {
+            let mut next = (CUR_PROCCESS + 1) % 4;
+
+            while !PROCESSES[next].alive {
+                next = (next + 1) % 4;
+            }
+
+            PROCESSES[CUR_PROCCESS].ctx = ctx.clone();
+            CUR_PROCCESS = next;
+            PROCESSES[CUR_PROCCESS].jump();
+        });
+        cli();
+        DEVICES.pic.enable_device(0);
+        PROCESSES[0].jump();
+    };
 }

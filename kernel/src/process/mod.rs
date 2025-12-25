@@ -11,7 +11,7 @@ use crate::{
     interrupts::{self, InterruptContext},
     paging::{self, POOL4K},
     println, process,
-    x86_utils::EFlags,
+    x86_utils::{EFlags, cli},
 };
 use core::{
     arch::asm,
@@ -29,7 +29,7 @@ pub static mut PROCESSES: nullsync::LazyCell<[Process; 4]> = nullsync::LazyCell:
         template_process(3, 0x50000, 1, 1, 2, 2),
     ]
 });
-pub static mut CUR_PROCCESS: usize = 1;
+pub static mut CUR_PROCCESS: usize = 0;
 
 pub fn get_cur_process() -> &'static mut Process {
     unsafe { &mut PROCESSES[CUR_PROCCESS] }
@@ -60,6 +60,7 @@ pub fn template_process(
 
 pub struct Process {
     pub pid: usize,
+    pub alive: bool,
     pub tbw: TextBufferWritter,
     pub ctx: InterruptContext,
     pub pd: *mut paging::PageDirectory,
@@ -74,6 +75,7 @@ impl Process {
 
         Self {
             pid,
+            alive: true,
             tbw,
             ctx: InterruptContext {
                 esp: VIRT_START as _,
@@ -109,6 +111,7 @@ impl Process {
     pub fn kill(&mut self) {
         paging::disable_paging();
         // paging::delete_process_pages(self.pd);
+        self.alive = false;
     }
 
     pub fn respawn(&mut self) -> ! {
@@ -127,11 +130,11 @@ impl Process {
         self.ctx.ecx = argv as _;
     }
 
-    pub fn jump(&self) -> ! {
+    pub fn jump(&mut self) -> ! {
+        self.alive = true;
         paging::enable_paging(self.pd);
         let stack_ctx = self.ctx.clone();
         unsafe {
-            CUR_PROCCESS = self.pid;
             asm!("mov ebx, {}", "jmp {}", in(reg) &stack_ctx, in(reg) interrupts::pop_ctx, options(noreturn, nostack));
         }
     }

@@ -3,7 +3,7 @@ use crate::{
     interrupts::{self, InterruptContext},
     paging, println,
     process::get_cur_process,
-    x86_utils::tsc_sleep,
+    x86_utils::{cli, sti, tsc_sleep},
 };
 
 use utils::io::Write;
@@ -42,19 +42,25 @@ pub fn pagefault_handler(ctx: &mut InterruptContext) {
 pub fn npe_handler(ctx: &mut InterruptContext) {
     let process = get_cur_process();
     writeln!(process.tbw, "NPE").unwrap();
-    process.respawn();
+    process.kill();
+    sti();
+    loop {}
 }
 
 pub fn soe_handler(ctx: &mut InterruptContext) {
     let process = get_cur_process();
     writeln!(process.tbw, "SOE").unwrap();
-    process.respawn();
+    process.kill();
+    sti();
+    loop {}
 }
 
 pub fn ub_handler(ctx: &mut InterruptContext) {
     let process = get_cur_process();
     writeln!(process.tbw, "UB").unwrap();
-    process.respawn();
+    process.kill();
+    sti();
+    loop {}
 }
 
 pub fn stack_expand_handler(ctx: &mut InterruptContext) {
