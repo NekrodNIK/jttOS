@@ -13,6 +13,7 @@ pub use entries::PageDirectory;
 pub use entries::PageTable;
 
 use crate::println;
+use crate::x86_utils::tsc_sleep;
 
 pub const PAGE_SIZE: usize = 4 * 1024;
 pub const HUGE_PAGE_SIZE: usize = 4 * 1024 * 1024;
@@ -34,12 +35,24 @@ pub fn init_paging_regs() {
     }
 }
 
+#[inline(always)]
 pub fn enable_paging(pd: *mut PageDirectory) {
-    unsafe { asm!("mov cr3, {}", "mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax", in(reg) pd) }
+    unsafe {
+        asm!("mov cr3, {}", "mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax", in(reg) pd, options(nostack))
+    }
 }
 
+#[inline(always)]
 pub fn disable_paging() {
-    unsafe { asm!("mov eax, cr0", "and eax, ~(1 << 31)", "mov cr0, eax",) }
+    unsafe {
+        asm!(
+            "mov eax, cr0",
+            "and eax, ~(1 << 31)",
+            "mov cr0, eax",
+            options(nostack)
+        );
+        tsc_sleep(1);
+    }
 }
 
 pub fn init_fb_paging(pd: *mut PageDirectory) {
@@ -155,9 +168,9 @@ pub fn init_args_pages(pd: *mut PageDirectory, user_args: &[&[u8]]) -> (u32, *co
     (argc as _, START as _)
 }
 
-pub fn enable_stack_pages(pd: *mut PageDirectory, address: *mut u8) {
+pub fn enable_stack_pages(pd: *mut PageDirectory, address: u32) {
     let pt1 = unsafe { &mut *(*pd)[1].pt_addr() };
-    let index = ((address as usize) & (0x3ff << 12)) >> 12;
+    let index = (address as usize >> 12) & 0x3ff;
 
     for i in index..1023 {
         pt1[i] = PageTableEntry::new(pt1[i].page_addr(), true, pt1[i].rw(), pt1[i].us());

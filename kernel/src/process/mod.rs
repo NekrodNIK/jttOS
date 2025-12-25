@@ -113,7 +113,7 @@ impl Process {
 
     pub fn kill(&mut self) -> ! {
         paging::disable_paging();
-        paging::delete_process_pages(self.pd);
+        // paging::delete_process_pages(self.pd);
         self.init(&[b"smth"]);
         self.jump();
     }

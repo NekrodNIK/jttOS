@@ -2,10 +2,15 @@
 #![no_main]
 
 mod stdlib;
-use core::arch::asm;
+use core::hint::black_box;
 
 pub fn main(args: &[*const u8]) {
-    unsafe { asm!("2: sub esp, 4*1024", "call 2b") }
-
+    program2(0);
     loop {}
+}
+
+fn program2(total: usize) {
+    println!("Stack usage: {} KB", total);
+    let _ = black_box([0u8; 4 * 1024]);
+    program2(total + 4)
 }
