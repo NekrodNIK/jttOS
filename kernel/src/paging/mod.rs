@@ -35,20 +35,13 @@ pub fn init_paging_regs() {
 
 #[inline(always)]
 pub fn enable_paging(pd: *mut PageDirectory) {
-    unsafe {
-        asm!("mov cr3, {}", "mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax", in(reg) pd, options(nostack))
-    }
+    unsafe { asm!("mov cr3, {}", "mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax", in(reg) pd) }
 }
 
 #[inline(always)]
 pub fn disable_paging() {
     unsafe {
-        asm!(
-            "mov eax, cr0",
-            "and eax, ~(1 << 31)",
-            "mov cr0, eax",
-            options(nostack)
-        );
+        asm!("mov eax, cr0", "and eax, ~(1 << 31)", "mov cr0, eax");
         tsc_sleep(1);
     }
 }
