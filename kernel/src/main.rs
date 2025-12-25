@@ -1,15 +1,18 @@
 #![no_std]
 #![no_main]
+#![feature(const_trait_impl)]
 
 extern crate alloc;
 
-mod allocator;
 mod critical_section;
 mod device_manager;
 mod drivers;
 mod entry;
 mod gdt;
+mod global_alloc;
 mod interrupts;
+mod lab7;
+mod paging;
 mod panic;
 mod syscalls;
 mod tss;
@@ -18,14 +21,18 @@ mod x86_utils;
 use alloc::boxed::Box;
 use core::{
     mem,
-    sync::atomic::{AtomicBool, Ordering},
+    ptr::null_mut,
+    sync::atomic::{AtomicPtr, Ordering},
 };
 use device_manager::DEVICES;
-use utils::io::Write;
+use utils::{io::Write, textbuffer::TextBufferWritter};
 
 use crate::{
     gdt::GDT,
-    interrupts::Idt,
+    interrupts::{Idt, InterruptContext},
+    paging::{
+        disable_paging, enable_paging, enable_user_pages, init_kernel_paging, init_user_paging,
+    },
     tss::TSS,
     x86_utils::{EFlags, tsc_sleep},
 };
@@ -72,9 +79,30 @@ fn new_tbw() -> utils::textbuffer::TextBufferWritter {
     tbw
 }
 
+// lab7 code -> DELETE AFTER LAB 7
+static TBW: AtomicPtr<TextBufferWritter> = AtomicPtr::new(0 as _); // :(
+//
+
 pub fn kmain() {
     let mut tbw = new_tbw();
     tbw.clear();
+
+    // lab7 code -> DELETE AFTER LAB 7
+    TBW.store(&raw mut tbw, Ordering::Release);
+    if cfg!(labs) {
+        lab7::run()
+    } else {
+        init_kernel_paging(
+            paging::PageDirectoryEntry::new_4mb(0 as _, true, true, true),
+            true,
+        );
+        init_user_paging();
+        enable_user_pages(0x402_000 as _);
+        paging::enable_paging();
+    }
+    //
+
+    info!(tbw, "Paging enabled");
 
     let mut idt = Idt::new();
     info!(tbw, "IDT loaded");
@@ -100,34 +128,254 @@ pub fn kmain() {
     writeln!(tbw, "Press any key...").unwrap();
 
     while DEVICES.ps2keyboard.read() == 0 {
-        tsc_sleep(100)
+        tsc_sleep(10000)
     }
 
-    jump_to_userspace(userspace::entry);
+    // lab7 artifact -> DELETE AFTER LAB 7
+    if cfg!(ex1) || cfg!(ex2) || cfg!(ex3) || cfg!(ex4) || cfg!(ex5) || cfg!(ex6) {
+        unsafe {
+            static mut X: usize = 0;
+
+            interrupts::register_handler(0x30, |ctx| {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", ctx.eax).unwrap()
+            });
+            interrupts::register_handler(0x20, |_| X = 0);
+            DEVICES.pic.enable_device(0);
+
+            jump_to_userspace(
+                || {
+                    loop {
+                        asm!("int 0x30", in("eax") X);
+                        X += 1;
+                    }
+                },
+                null_mut(),
+            );
+        }
+    } else if cfg!(ex7) {
+        jump_to_userspace(
+            || unsafe {
+                write!(*TBW.load(Ordering::Relaxed), "USERSPACE").unwrap();
+                loop {}
+            },
+            null_mut(),
+        );
+    } else if cfg!(ex8) {
+        unsafe {
+            static mut X: usize = 0;
+
+            interrupts::register_handler(0x30, |ctx| {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", ctx.eax).unwrap()
+            });
+            interrupts::register_handler(0x20, |_| X = 0);
+            DEVICES.pic.enable_device(0);
+
+            jump_to_userspace(
+                || {
+                    loop {
+                        asm!("int 0x30", in("eax") X);
+                        X += 1;
+                    }
+                },
+                0x800_000 as _,
+            );
+        }
+    } else if cfg!(ex9) {
+        static mut X: u32 = 0;
+
+        fn user_exit(code: u32) {
+            unsafe {
+                asm!("int 0x30", in("eax") code);
+            }
+        }
+
+        fn syscall_exit(ctx: &mut InterruptContext) {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+
+            unsafe {
+                write!(*TBW.load(Ordering::Relaxed), "{} ", u32::from(X)).unwrap();
+                X += 1
+            }
+
+            jump_to_userspace(
+                || unsafe {
+                    user_exit(X);
+                    loop {}
+                },
+                0x800_000 as _,
+            );
+        }
+
+        interrupts::register_handler(0x30, syscall_exit);
+
+        jump_to_userspace(
+            || unsafe {
+                user_exit(X);
+                loop {}
+            },
+            0x800_000 as _,
+        );
+    } else if cfg!(ex10) {
+        static mut X: u32 = 0;
+        fn user_exit(code: u32) {
+            unsafe {
+                asm!("int 0x30", in("eax") code);
+            }
+        }
+
+        fn user_main() {
+            unsafe {
+                match X % 4 {
+                    0 => user_exit(1),
+                    1 => asm!("mov eax, [0x42]"),
+                    2 => asm!("2: sub esp, 4092", "call 2b"),
+                    3 => *(0x900000 as *mut u32) = 1,
+                    _ => (),
+                }
+            }
+            loop {}
+        }
+
+        fn reload_process() {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+            jump_to_userspace(user_main, 0x800_000 as _);
+        }
+
+        fn syscall_exit(ctx: &mut InterruptContext) {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "{} ", u32::from(X)).unwrap();
+                X += 1
+            }
+
+            reload_process()
+        }
+
+        interrupts::register_handler(0x30, syscall_exit);
+        interrupts::register_handler(0xe, interrupts::page_fault_handler);
+        interrupts::register_userspace_npe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "NPE").unwrap();
+                X += 1
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_soe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "SOE").unwrap();
+                X += 1
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_ub_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "UB").unwrap();
+                X += 1;
+            }
+            reload_process()
+        });
+
+        jump_to_userspace(user_main, 0x800_000 as _);
+    } else if cfg!(ex11) {
+        const X: usize = 2000;
+
+        fn user_main() {
+            unsafe {
+                asm!(
+                    "mov edi, {}",
+                    "call 2f",
+                    "jmp 3f",
+                    "2:",
+                    "sub esp, 4096",
+                    "test edi, edi",
+                    "jz 3f",
+                    "dec edi",
+                    "call 2b",
+                    "3:",
+                    const X
+                )
+            }
+
+            loop {}
+        }
+
+        fn reload_process() {
+            paging::disable_paging();
+            paging::init_user_paging();
+            paging::enable_paging();
+            jump_to_userspace(user_main, 0x800_000 as _);
+        }
+
+        interrupts::register_handler(0xe, interrupts::page_fault_handler);
+        interrupts::register_userspace_npe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "NPE").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_soe_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "SOE").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_ub_handler(|_| {
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "UB").unwrap();
+            }
+            reload_process()
+        });
+        interrupts::register_userspace_stack_endpand_handler(|ctx: &mut InterruptContext| {
+            disable_paging();
+            enable_user_pages(ctx.cr2 as *mut u8);
+            unsafe {
+                writeln!(*TBW.load(Ordering::Relaxed), "{}", ctx.cr2).unwrap();
+            }
+            enable_paging();
+        });
+
+        jump_to_userspace(user_main, 0x800_000 as _);
+    }
+    //
+
+    if !cfg!(labs) {
+        jump_to_userspace(userspace::entry, 0x800_000 as _);
+    }
 }
 
-pub fn jump_to_userspace(entry: fn()) {
+pub fn jump_to_userspace(entry: fn(), stack: *mut u8) {
     unsafe {
-        let stack = Box::into_raw(Box::new([0usize; 4 * 1024]));
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
-        asm!(
-            "push {ss}",
-            "push {esp}",
-            "push {eflags}",
-            "push {cs}",
-            "push {eip}",
-            "mov ds, {ds}",
-            "mov es, {ds}",
-            "mov fs, {ds}",
-            "mov gs, {ds}",
-            "iretd",
-            ss = in(reg) 32 | 0b11,
-            esp = in(reg) stack as u32 + 4 * 1024,
-            eflags = in(reg) flags.bits(),
-            cs = in(reg) 24 | 0b11,
-            eip = in(reg) entry,
-            ds = in(reg) 32 | 0b11,
-            options(nostack),
-        );
+
+        let cs = 24 | 0b11;
+        let ds = 32 | 0b11;
+
+        let ctx = InterruptContext {
+            esp: stack as _,
+            ss: ds,
+            edi: 0,
+            esi: 0,
+            ebp: 0,
+            _fill: 0,
+            ebx: 0,
+            edx: 0,
+            ecx: 0,
+            eax: 0,
+            gs: ds,
+            fs: ds,
+            es: ds,
+            ds: ds,
+            vector: 0,
+            errcode: 0,
+            eip: entry as _,
+            cs: cs,
+            eflags: flags,
+            cr2: 0,
+        };
+
+        asm!("mov ebx, {}", "jmp {}", in(reg) &ctx,  in(reg) interrupts::pop_ctx);
     }
 }

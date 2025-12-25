@@ -4,6 +4,25 @@
 use core::arch::asm;
 use utils::{framebuffer, io::Write, key::Key, textbuffer};
 
+pub fn rdtsc() -> u64 {
+    let high: u32;
+    let low: u32;
+
+    unsafe {
+        asm!("rdtsc", out("edx") high, out("eax") low);
+    }
+    (high as u64) << 32 | (low as u64)
+}
+
+pub fn tsc_sleep(ticks: u64) {
+    let start = rdtsc();
+    let mut cur = start;
+
+    while cur - start < ticks {
+        cur = rdtsc();
+    }
+}
+
 fn get_fb() -> framebuffer::Framebuffer {
     let mut addr: *mut u32;
     let mut width: u32;
@@ -32,6 +51,16 @@ fn get_key() -> u8 {
                 inout("eax") 3 => code,
                 in("ebx") 0);
         }
+    }
+    code as u8
+}
+
+fn get_key_nowait() -> u8 {
+    let mut code: i32 = 0;
+    unsafe {
+        asm!("int 0x80",
+                inout("eax") 3 => code,
+                in("ebx") 0);
     }
     code as u8
 }
@@ -145,6 +174,8 @@ pub fn key_to_upper_symbol(key: Key) -> Option<u8> {
 }
 
 const SHELL_PROMPT: &'static str = "jttOS> ";
+const COMMAND_CLEAR: &'static [u8] = b"clear";
+const COMMAND_ANIMATION: &'static [u8] = b"color";
 
 pub fn entry() {
     let fb = get_fb();
@@ -158,7 +189,6 @@ pub fn entry() {
     let mut upper_flag = false;
     let mut command_buf = [0; 5];
     let mut command_index = 0;
-    let mut command_wait_flag = true;
 
     loop {
         let mut keycode: u8 = 0;
@@ -177,23 +207,14 @@ pub fn entry() {
                 }
             }
             Key::Enter => {
-                match (command_wait_flag, command_buf) {
-                    (
-                        false,
-                        [
-                            b'c' | b'C',
-                            b'l' | b'L',
-                            b'e' | b'E',
-                            b'a' | b'A',
-                            b'r' | b'R',
-                        ],
-                    ) => {
-                        tbw.clear();
-                    }
+                match &command_buf[0..command_index] {
+                    COMMAND_CLEAR => tbw.clear(),
+                    COMMAND_ANIMATION => animation(&mut tbw),
                     _ => write!(tbw, "\n").unwrap(),
                 }
+
+                command_buf = [0; 5];
                 command_index = 0;
-                command_wait_flag = true;
 
                 tbw.set_next_fg(0x000ff00);
                 write!(tbw, "{}", SHELL_PROMPT).unwrap();
@@ -208,23 +229,65 @@ pub fn entry() {
             key_to_symbol
         };
 
-        match symfn(key) {
-            Some(symbol) => {
-                if command_index < command_buf.len() - 1 {
-                    command_buf[command_index] = symbol;
-                    command_index += 1;
-                } else if command_index == command_buf.len() - 1 {
-                    command_buf[command_index] = symbol;
-                    command_index += 0;
-                    command_wait_flag = false;
-                }
-                write!(tbw, "{}", symbol as char).unwrap();
+        if let Some(symbol) = symfn(key) {
+            if command_index < command_buf.len() {
+                command_buf[command_index] = symbol;
+                command_index += 1;
             }
-            None => (),
+            write!(tbw, "{}", symbol as char).unwrap();
         }
 
         if matches!(key, Key::CapsLock) {
             upper_flag = !upper_flag
         }
     }
+}
+
+fn animation(tbw: &mut textbuffer::TextBufferWritter) {
+    let fb = &tbw.buffer.fb;
+
+    let mut hue: f32 = 0.0;
+    let saturation: f32 = 1.0;
+    let value: f32 = 1.0;
+
+    loop {
+        let keycode = get_key_nowait();
+        if keycode != 0 {
+            break;
+        }
+
+        let c = value * saturation;
+        let x = c * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+        let m = value - c;
+
+        let (r_prime, g_prime, b_prime) = match (hue as i32 / 60) % 6 {
+            0 => (c, x, 0.0),
+            1 => (x, c, 0.0),
+            2 => (0.0, c, x),
+            3 => (0.0, x, c),
+            4 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+
+        let r = ((r_prime + m) * 255.0) as u32;
+        let g = ((g_prime + m) * 255.0) as u32;
+        let b = ((b_prime + m) * 255.0) as u32;
+
+        let color = (r << 16) | (g << 8) | b;
+
+        unsafe {
+            for i in 0..(fb.width * fb.height) {
+                *fb.addr.add(i) = color;
+            }
+        }
+
+        hue += 0.5;
+        if hue >= 360.0 {
+            hue = 0.0;
+        }
+
+        tsc_sleep(1000000);
+    }
+
+    tbw.clear();
 }

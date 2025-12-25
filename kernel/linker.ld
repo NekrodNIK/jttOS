@@ -10,7 +10,6 @@ SECTIONS {
     }
 
     .kernel : ALIGN(512) {
-        *(.vbe);
         *(.text);
         *(.text.*);
         *(.rodata);
@@ -19,12 +18,15 @@ SECTIONS {
         *(.data.*);
         *(.bss);
         *(.bss.*);
+        RAM_SIZE = .;
+        LONG(10 * 1024 * 1024)
+        . = . + 4;
     }
     
     . = ALIGN(512);
 
     _copy_size = . - _copy_start;
-    ASSERT(_copy_size <= 200 * 1024, "OS is too large, max 200KiB")
+    ASSERT(_copy_size <= 480 * 1024, "OS is too large, max 480KiB")
     _copy_sectors = _copy_size / 512;
 
     /DISCARD/ : {

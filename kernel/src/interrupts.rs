@@ -1,4 +1,4 @@
-use core::arch::naked_asm;
+use core::arch::{asm, naked_asm};
 use core::array;
 use core::mem;
 use core::sync::atomic::AtomicPtr;
@@ -7,9 +7,20 @@ use core::sync::atomic::Ordering;
 use alloc::boxed::Box;
 
 use crate::x86_utils::{EFlags, lidt};
+use crate::{TBW, paging};
+use utils::io::Write;
 
 static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
     [const { AtomicPtr::new(unhandled_panic as _) }; 256];
+
+static USERSPACE_NPE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_SOE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_UB_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
+static USERSPACE_STACK_EXPAND_HANDLER: AtomicPtr<fn(&InterruptContext)> =
+    AtomicPtr::new(unhandled_panic as _);
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -35,10 +46,11 @@ pub struct InterruptDescriptor {
 #[repr(C, align(4))]
 #[derive(Debug, Clone)]
 pub struct InterruptContext {
+    pub cr2: u32,
     pub edi: u32,
     pub esi: u32,
     pub ebp: u32,
-    pub esp: u32,
+    pub _fill: u32,
     pub ebx: u32,
     pub edx: u32,
     pub ecx: u32,
@@ -55,6 +67,9 @@ pub struct InterruptContext {
     pub eip: u32,
     pub cs: u16,
     pub eflags: EFlags,
+
+    pub esp: u32,
+    pub ss: u16,
 }
 
 impl Idt {
@@ -141,6 +156,8 @@ extern "C" fn collect_ctx() {
         "push fs",
         "push gs",
         "pushad",
+        "mov eax, cr2",
+        "push eax",
         // set selectors
         "mov ax, {sel}",
         "mov ds, ax",
@@ -155,8 +172,19 @@ extern "C" fn collect_ctx() {
         "push ebx",
         "cld",
         "call {handler}",
+        "jmp {ret_handler}",
 
+        sel = const 16,
+        handler = sym global_handler,
+        ret_handler = sym pop_ctx
+    )
+}
+
+#[unsafe(naked)]
+pub extern "C" fn pop_ctx() {
+    naked_asm!(
         "mov esp, ebx",
+        "pop eax", // cr2
         "popad",
         "pop gs",
         "pop fs",
@@ -164,9 +192,6 @@ extern "C" fn collect_ctx() {
         "pop ds",
         "add esp, 8",
         "iretd",
-
-        sel = const 16,
-        handler = sym global_handler,
     )
 }
 
@@ -230,4 +255,53 @@ fn unhandled_panic(ctx: &InterruptContext) {
 
 pub fn register_handler(index: u8, handler: fn(&mut InterruptContext)) {
     HANDLERS[index as usize].store(handler as _, Ordering::Relaxed);
+}
+
+pub fn page_fault_handler(ctx: &mut InterruptContext) {
+    let us_bit = ctx.errcode & (1 << 2) != 0;
+
+    if !us_bit {
+        unhandled_panic(ctx);
+    }
+
+    enum UserErr {
+        NPE,
+        SOE,
+        UB,
+        GuardPage,
+    }
+
+    let user_err = match ctx.cr2 {
+        0..0x7000 => UserErr::NPE,
+        0x80000..0x402000 => UserErr::SOE,
+        0x402000..0x800000 => UserErr::GuardPage,
+        _ => UserErr::UB,
+    };
+
+    let handler = match user_err {
+        UserErr::NPE => &USERSPACE_NPE_HANDLER,
+        UserErr::SOE => &USERSPACE_SOE_HANDLER,
+        UserErr::UB => &USERSPACE_UB_HANDLER,
+        UserErr::GuardPage => &USERSPACE_STACK_EXPAND_HANDLER,
+    }
+    .load(Ordering::Relaxed);
+
+    unsafe {
+        (mem::transmute::<_, fn(&mut InterruptContext)>(handler))(ctx);
+    }
+}
+
+pub fn register_userspace_npe_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_NPE_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+
+pub fn register_userspace_soe_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_SOE_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+pub fn register_userspace_ub_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_UB_HANDLER.store(handler as _, Ordering::Relaxed);
+}
+
+pub fn register_userspace_stack_endpand_handler(handler: fn(&mut InterruptContext)) {
+    USERSPACE_STACK_EXPAND_HANDLER.store(handler as _, Ordering::Relaxed);
 }
