@@ -56,10 +56,7 @@ impl PS2Keyboard {
 
     pub fn int_handler(ctx: &mut InterruptContext) {
         let code = DATA.read();
-        match PARSER.parse(code) {
-            Ok(KeyEvent::Pressed(key)) => BUFFER.borrow_mut().push(key),
-            _ => (),
-        }
+        if let Ok(KeyEvent::Pressed(key)) = PARSER.parse(code) { BUFFER.borrow_mut().push(key) }
     }
 
     pub fn read(&self) -> u8 {

@@ -1,4 +1,4 @@
-use core::arch::{asm, naked_asm};
+use core::arch::naked_asm;
 use core::array;
 use core::mem;
 use core::sync::atomic::AtomicPtr;
@@ -193,7 +193,7 @@ extern "C" fn global_handler(ctx: *mut InterruptContext) {
     let mut ctx = unsafe { &mut *ctx };
     let us_bit = ctx.errcode & (1 << 2) != 0;
     if us_bit {
-        return user_global_handler(&mut ctx);
+        return user_global_handler(ctx);
     }
 
     unsafe {

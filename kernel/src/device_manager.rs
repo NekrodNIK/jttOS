@@ -2,7 +2,7 @@ use crate::{
     TBW,
     drivers::{
         pic8259,
-        pit::{self, MAX_FREQ},
+        pit::{self},
         ps2,
     },
     interrupts,

@@ -18,21 +18,20 @@ mod tss;
 mod x86_utils;
 
 use core::{
-    cell::{LazyCell, OnceCell, RefCell},
+    cell::{LazyCell, RefCell},
     mem,
 };
 use device_manager::DEVICES;
 use utils::nullsync;
+use utils::textbuffer::TextBuffer;
 use utils::textbuffer::TextBufferWritter;
-use utils::{as_fn, textbuffer::TextBuffer};
-use utils::{io::Write, textbuffer::TextBufferRegion};
 
 use crate::{
     gdt::GDT,
     interrupts::Idt,
-    process::{CUR_PROCCESS, PROCESSES, Process},
+    process::{CUR_PROCCESS, PROCESSES},
     tss::TSS,
-    x86_utils::{EFlags, cli, sti, tsc_sleep},
+    x86_utils::{cli, sti, tsc_sleep},
 };
 
 macro_rules! print {
@@ -71,7 +70,6 @@ macro_rules! warning {
 pub(crate) use info;
 pub(crate) use print;
 pub(crate) use println;
-pub(crate) use warning;
 
 unsafe extern "C" {
     static framebuffer_addr: *mut u32;

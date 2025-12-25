@@ -1,22 +1,14 @@
 use core::slice;
 
-use alloc::borrow::ToOwned;
 use utils::io::Write;
 
 use crate::{
-    TBW, critical_section,
-    device_manager::DEVICES,
-    drivers::ps2,
-    interrupts::InterruptContext,
-    print, println,
-    process::get_cur_process,
-    x86_utils::{cli, sti, tsc_sleep},
+    device_manager::DEVICES, interrupts::InterruptContext, process::get_cur_process, x86_utils::sti,
 };
 
 const INVALID_ARGS: i32 = -1;
 const UNKNOWN_SYSCALL: i32 = -2;
 const WRITE_ERROR: i32 = -3;
-const EXIT_ERROR: i32 = -4;
 
 pub fn generic_handler(ctx: &mut InterruptContext) {
     ctx.eax = match ctx.eax {
@@ -43,7 +35,7 @@ fn read() -> i32 {
 
 fn exit(code: u32) -> ! {
     let process = get_cur_process();
-    write!(process.tbw, "EXIT WITH CODE {}\n", code).unwrap();
+    writeln!(process.tbw, "EXIT WITH CODE {}", code).unwrap();
     process.kill();
     sti();
     loop {}

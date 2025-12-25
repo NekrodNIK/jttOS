@@ -3,17 +3,13 @@ mod entries;
 
 use core::arch::asm;
 use core::array;
-use core::ptr;
 
 pub use allocator::POOL4K;
 pub use entries::PageDirectoryEntry;
 pub use entries::PageTableEntry;
 
 pub use entries::PageDirectory;
-pub use entries::PageTable;
 
-use crate::println;
-use crate::x86_utils::tsc_sleep;
 
 pub const PAGE_SIZE: usize = 4 * 1024;
 pub const HUGE_PAGE_SIZE: usize = 4 * 1024 * 1024;

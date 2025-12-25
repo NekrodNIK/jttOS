@@ -1,7 +1,6 @@
 mod errors;
-pub use errors::pagefault_handler;
 use utils::{
-    as_fn, nullsync,
+    nullsync,
     textbuffer::{TextBufferRegion, TextBufferWritter},
 };
 
@@ -9,15 +8,10 @@ use crate::{
     TBW,
     gdt::{USER_CS, USER_DS},
     interrupts::{self, InterruptContext},
-    paging::{self, POOL4K},
-    println, process,
-    x86_utils::{EFlags, cli, tsc_sleep},
+    paging::{self}, process,
+    x86_utils::EFlags,
 };
-use core::{
-    arch::asm,
-    cell::{LazyCell, RefCell},
-    ptr::{null, null_mut},
-};
+use core::arch::asm;
 
 pub use process::errors::user_global_handler;
 

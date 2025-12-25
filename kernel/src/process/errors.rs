@@ -1,9 +1,8 @@
 use crate::{
-    TBW,
-    interrupts::{self, InterruptContext},
-    paging, println,
+    interrupts::InterruptContext,
+    paging,
     process::get_cur_process,
-    x86_utils::{cli, sti, tsc_sleep},
+    x86_utils::{sti, tsc_sleep},
 };
 
 use utils::io::Write;
