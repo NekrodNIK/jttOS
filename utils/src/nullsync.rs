@@ -1,5 +1,6 @@
 use ::core::cell;
 use ::core::ops::Deref;
+use core::ops::DerefMut;
 
 #[repr(transparent)]
 pub struct Marker<T>(T);
@@ -49,6 +50,12 @@ impl<T> Deref for LazyCell<T> {
     type Target = ::core::cell::LazyCell<T>;
     fn deref(&self) -> &Self::Target {
         &self.data.0
+    }
+}
+
+impl<T> DerefMut for LazyCell<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data.0
     }
 }
 

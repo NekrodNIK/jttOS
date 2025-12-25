@@ -1,5 +1,6 @@
 use crate::{font, framebuffer::Framebuffer, io};
 
+#[derive(Clone)]
 pub struct TextBufferRegion {
     pub x: usize,
     pub y: usize,
@@ -42,10 +43,15 @@ impl TextBuffer {
         }
     }
 
-    pub fn sub(&self, region: TextBufferRegion) -> Self {
+    pub fn sub(&self, mut region: TextBufferRegion) -> Self {
+        region.x = (region.x + 8 - 1) & !(8 - 1);
+        region.y = (region.y + 16 - 1) & !(16 - 1);
+        region.width = region.width / 8 * 8;
+        region.height = region.height / 16 * 16;
+
         Self {
             fb: self.fb.clone(),
-            region,
+            region: region,
         }
     }
 
@@ -108,7 +114,7 @@ impl TextBuffer {
             }
         }
 
-        let last_row = (self.region.y + (self.height() - 1) * 16) * self.fb.width + self.region.x;
+        let last_row = (self.region.y + lines_count) * self.fb.width + self.region.x;
         for y in 0..16 {
             for x in 0..self.region.width {
                 unsafe {

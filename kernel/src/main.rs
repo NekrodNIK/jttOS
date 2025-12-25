@@ -31,7 +31,7 @@ use utils::{io::Write, textbuffer::TextBufferRegion};
 use crate::{
     gdt::GDT,
     interrupts::Idt,
-    process::Process,
+    process::{PROCESSES, Process},
     tss::TSS,
     x86_utils::{EFlags, cli, sti, tsc_sleep},
 };
@@ -94,8 +94,10 @@ static TBW: nullsync::Marker<LazyCell<RefCell<TextBufferWritter>>> =
 pub fn kmain() {
     TBW.borrow_mut().clear();
 
-    paging::init_kernel_paging();
-    paging::enable_paging();
+    unsafe {
+        paging::PAGE_DIRECTORY = paging::init_kernel_paging();
+        paging::enable_paging(paging::PAGE_DIRECTORY);
+    }
     info!("Paging enabled");
 
     let mut idt = Idt::new();
@@ -128,6 +130,5 @@ pub fn kmain() {
 
     TBW.borrow_mut().clear();
 
-    let process = Process::new(as_fn(0x800000 as _));
-    process.run(&[b"binary\0", b"-f\0", b"some\0", b"\0"]);
+    unsafe { PROCESSES[0].run(&[b"binary\0", b"-f\0", b"some\0", b"\0"]) };
 }

@@ -1,6 +1,8 @@
 use core::ptr;
 use utils::nullsync;
 
+use crate::{print, println};
+
 const ARENA_START: usize = 0x400000;
 unsafe extern "C" {
     static RAM_SIZE: usize;

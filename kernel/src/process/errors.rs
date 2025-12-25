@@ -48,7 +48,9 @@ pub fn ub_handler(ctx: &mut InterruptContext) {
 }
 
 pub fn stack_expand_handler(ctx: &mut InterruptContext) {
-    paging::disable_paging();
-    paging::enable_user_pages(ctx.cr2 as *mut u8);
-    paging::enable_paging();
+    unsafe {
+        paging::disable_paging();
+        paging::enable_stack_pages(paging::PAGE_DIRECTORY, ctx.cr2 as *mut u8);
+        paging::enable_paging(paging::PAGE_DIRECTORY);
+    }
 }

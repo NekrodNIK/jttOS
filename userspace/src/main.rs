@@ -15,4 +15,8 @@ pub fn main(args: &[*const u8]) {
         }
         println!("");
     }
+
+    // for i in 0.. {
+    //     print!("{} ", i);
+    // }
 }

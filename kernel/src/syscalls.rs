@@ -1,5 +1,6 @@
 use core::slice;
 
+use alloc::borrow::ToOwned;
 use utils::io::Write;
 
 use crate::{
@@ -8,12 +9,14 @@ use crate::{
     drivers::ps2,
     interrupts::InterruptContext,
     print, println,
+    process::{self, PROCESSES, get_process},
     x86_utils::{sti, tsc_sleep},
 };
 
 const INVALID_ARGS: i32 = -1;
 const UNKNOWN_SYSCALL: i32 = -2;
 const WRITE_ERROR: i32 = -3;
+const EXIT_ERROR: i32 = -4;
 
 pub fn generic_handler(ctx: &mut InterruptContext) {
     ctx.eax = match ctx.eax {
@@ -38,13 +41,15 @@ fn read() -> i32 {
     DEVICES.ps2keyboard.read() as i32
 }
 
-fn exit(code: u32) -> i32 {
-    println!("EXIT WITH CODE: {}", code);
-    0
+fn exit(code: u32) -> ! {
+    let process = get_process(0).unwrap();
+    process.kill();
+    write!(process.tbw, "EXIT WITH CODE {}\n", code).unwrap();
+    loop {}
 }
 
 fn write(buf: &[u8]) -> i32 {
-    match TBW.borrow_mut().write(buf) {
+    match get_process(0).unwrap().tbw.write(buf) {
         Ok(count) => count as _,
         Err(_) => WRITE_ERROR,
     }

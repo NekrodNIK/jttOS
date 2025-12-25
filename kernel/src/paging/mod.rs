@@ -9,12 +9,17 @@ pub use allocator::POOL4K;
 pub use entries::PageDirectoryEntry;
 pub use entries::PageTableEntry;
 
-use crate::paging::entries::PageDirectory;
+pub use entries::PageDirectory;
+pub use entries::PageTable;
+
+use crate::println;
 
 pub const PAGE_SIZE: usize = 4 * 1024;
 pub const HUGE_PAGE_SIZE: usize = 4 * 1024 * 1024;
 pub type Page = [u8; PAGE_SIZE];
 pub type HugePage = [u8; HUGE_PAGE_SIZE];
+
+pub static mut PAGE_DIRECTORY: *mut PageDirectory = ptr::null_mut();
 
 pub fn init_paging_regs() {
     unsafe {
@@ -22,28 +27,22 @@ pub fn init_paging_regs() {
             "mov eax, cr0",
             "and eax, ~(1 << 16)",
             "mov cr0, eax",
-
             "mov eax, cr4",
             "or eax, 1 << 4",
             "mov cr4, eax",
-
-            "mov cr3, {}",
-            in(reg) PAGE_DIRECTORY
         )
     }
 }
 
-pub fn enable_paging() {
-    unsafe { asm!("mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax",) }
+pub fn enable_paging(pd: *mut PageDirectory) {
+    unsafe { asm!("mov cr3, {}", "mov eax, cr0", "or eax, 1 << 31", "mov cr0, eax", in(reg) pd) }
 }
 
 pub fn disable_paging() {
     unsafe { asm!("mov eax, cr0", "and eax, ~(1 << 31)", "mov cr0, eax",) }
 }
 
-static mut PAGE_DIRECTORY: *mut PageDirectory = ptr::null_mut();
-
-pub fn init_fb_paging() {
+pub fn init_fb_paging(pd: *mut PageDirectory) {
     let start_addr = (unsafe { crate::framebuffer_addr as usize } & (0x3ff * HUGE_PAGE_SIZE));
     let end_addr = {
         let addr = unsafe {
@@ -55,18 +54,18 @@ pub fn init_fb_paging() {
 
     for i in (start_addr >> 22)..(end_addr >> 22) {
         unsafe {
-            (*PAGE_DIRECTORY)[i] =
-                PageDirectoryEntry::new_4mb((i * HUGE_PAGE_SIZE) as _, true, true, false)
+            (*pd)[i] = PageDirectoryEntry::new_4mb((i * HUGE_PAGE_SIZE) as _, true, true, false)
         }
     }
 }
 
-pub fn init_kernel_paging() {
+pub fn init_kernel_paging() -> *mut PageDirectory {
+    let pd = POOL4K.alloc() as *mut PageDirectory;
+
     let pt0 = unsafe {
-        PAGE_DIRECTORY = POOL4K.alloc() as *mut [PageDirectoryEntry; 1024];
-        *PAGE_DIRECTORY = array::from_fn(|_| PageDirectoryEntry::empty());
-        (*PAGE_DIRECTORY)[0] = PageDirectoryEntry::new_4kb(POOL4K.alloc() as _, true, true, true);
-        &mut *(*PAGE_DIRECTORY)[0].pt_addr()
+        *pd = array::from_fn(|_| PageDirectoryEntry::empty());
+        (*pd)[0] = PageDirectoryEntry::new_4kb(POOL4K.alloc() as _, true, true, true);
+        &mut *(*pd)[0].pt_addr()
     };
 
     *pt0 = array::from_fn(|i| {
@@ -78,11 +77,12 @@ pub fn init_kernel_paging() {
         )
     });
 
-    init_fb_paging();
+    init_fb_paging(pd);
     init_paging_regs();
+    pd
 }
 
-pub fn init_user_paging() {
+pub fn init_stack_pages(pd: *mut PageDirectory) {
     unsafe {
         let pde1 = &mut (*PAGE_DIRECTORY)[1];
         let pde2 = &mut (*PAGE_DIRECTORY)[2];
@@ -118,13 +118,27 @@ pub fn init_user_paging() {
     }
 }
 
-pub fn init_args_pages(user_args: &[&[u8]]) -> (u32, *const *const u8) {
+pub fn delete_process_pages(pd: *mut PageDirectory) {
+    let pt1 = unsafe { &mut *(*pd)[2].pt_addr() };
+    let pt2 = unsafe { &mut *(*pd)[2].pt_addr() };
+
+    for pte in pt1.iter() {
+        POOL4K.free(pte.page_addr() as _);
+    }
+    POOL4K.free(&raw mut *pt1 as _);
+
+    for i in 16..1023 {
+        POOL4K.free(pt2[i].page_addr() as _);
+    }
+}
+
+pub fn init_args_pages(pd: *mut PageDirectory, user_args: &[&[u8]]) -> (u32, *const *const u8) {
     const START: usize = 0x810_000;
 
     debug_assert!(user_args.len() <= 1008);
     let argc = user_args.len();
 
-    let pt2 = unsafe { &mut *(*PAGE_DIRECTORY)[2].pt_addr() };
+    let pt2 = unsafe { &mut *(*pd)[2].pt_addr() };
     let argv_page = POOL4K.alloc() as *mut *mut u8;
     pt2[16] = PageTableEntry::new(argv_page as _, true, true, true);
 
@@ -142,10 +156,10 @@ pub fn init_args_pages(user_args: &[&[u8]]) -> (u32, *const *const u8) {
     (argc as _, START as _)
 }
 
-pub fn enable_user_pages(address: *mut u8) {
+pub fn enable_stack_pages(pd: *mut PageDirectory, address: *mut u8) {
     unsafe {
         let address = (address as u32) & (!0 << 12);
-        for pte in &mut *(*PAGE_DIRECTORY)[1].pt_addr() {
+        for pte in &mut *(*pd)[1].pt_addr() {
             if pte.page_addr() >= address as _ {
                 *pte = PageTableEntry::new(pte.page_addr() as _, true, pte.rw(), pte.us());
             }
