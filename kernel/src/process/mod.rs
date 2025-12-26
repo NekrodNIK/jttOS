@@ -8,7 +8,8 @@ use crate::{
     TBW,
     gdt::{USER_CS, USER_DS},
     interrupts::{self, InterruptContext},
-    paging::{self}, process,
+    paging::{self},
+    process,
     x86_utils::EFlags,
 };
 use core::arch::asm;

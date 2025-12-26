@@ -10,7 +10,6 @@ pub use entries::PageTableEntry;
 
 pub use entries::PageDirectory;
 
-
 pub const PAGE_SIZE: usize = 4 * 1024;
 pub const HUGE_PAGE_SIZE: usize = 4 * 1024 * 1024;
 pub type Page = [u8; PAGE_SIZE];
@@ -99,9 +98,10 @@ pub fn init_stack_pages(pd: *mut PageDirectory) {
 
         if pde1.is_empty() {
             let pt = POOL4K.alloc() as *mut [PageTableEntry; 1024];
-            for i in 0..1024 {
-                (*pt)[i] = PageTableEntry::new((POOL4K.alloc()) as _, i == 1023, true, true);
+            for i in 0..1023 {
+                (*pt)[i] = PageTableEntry::new(0 as _, false, true, true);
             }
+            (*pt)[1023] = PageTableEntry::new((POOL4K.alloc()) as _, true, true, true);
             (*pde1) = PageDirectoryEntry::new_4kb(pt as _, true, true, true);
         } else if pde1.present() && !pde1.pt_addr().is_null() {
             for pt in (&mut *pde1.pt_addr()).iter_mut() {
@@ -159,11 +159,16 @@ pub fn init_args_pages(pd: *mut PageDirectory, user_args: &[&[u8]]) -> (u32, *co
     (argc as _, START as _)
 }
 
+static mut CUR_STACK_INDEX: usize = 1023;
+
 pub fn enable_stack_pages(pd: *mut PageDirectory, address: u32) {
     let pt1 = unsafe { &mut *(*pd)[1].pt_addr() };
     let index = (address as usize >> 12) & 0x3ff;
 
-    for i in index..1023 {
-        pt1[i] = PageTableEntry::new(pt1[i].page_addr(), true, pt1[i].rw(), pt1[i].us());
+    unsafe {
+        for i in index..CUR_STACK_INDEX {
+            pt1[i] = PageTableEntry::new(POOL4K.alloc() as _, true, pt1[i].rw(), pt1[i].us());
+        }
+        CUR_STACK_INDEX = index;
     }
 }
