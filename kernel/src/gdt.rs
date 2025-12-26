@@ -2,6 +2,11 @@ use bitflags::bitflags;
 use core::cell::Cell;
 use core::mem;
 
+pub const KERNEL_CS: u16 = 0x8;
+pub const KERNEL_DS: u16 = 0x10;
+pub const USER_CS: u16 = 0x18 | 0b11;
+pub const USER_DS: u16 = 0x20 | 0b11;
+
 pub static GDT: Gdt = Gdt::new();
 #[unsafe(link_section = ".boot")]
 #[unsafe(no_mangle)]

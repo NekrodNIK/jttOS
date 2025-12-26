@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use core::arch::asm;
 
-use crate::x86_utils;
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -62,15 +61,15 @@ impl EFlags {
     }
 }
 
-pub unsafe fn cli() {
+pub fn cli() {
     unsafe { asm!("cli") }
 }
 
-pub unsafe fn sti() {
+pub fn sti() {
     unsafe { asm!("sti") }
 }
 
-pub unsafe fn lidt(ptr: *const u8) {
+pub fn lidt(ptr: *const u8) {
     unsafe { asm!("lidt [{}]", in(reg) ptr) }
 }
 

@@ -1,4 +1,4 @@
-use core::arch::{asm, naked_asm};
+use core::arch::naked_asm;
 use core::array;
 use core::mem;
 use core::sync::atomic::AtomicPtr;
@@ -6,21 +6,11 @@ use core::sync::atomic::Ordering;
 
 use alloc::boxed::Box;
 
+use crate::process::user_global_handler;
 use crate::x86_utils::{EFlags, lidt};
-use crate::{TBW, paging};
-use utils::io::Write;
 
-static HANDLERS: [AtomicPtr<fn(&InterruptContext)>; 256] =
+static HANDLERS: [AtomicPtr<fn(&mut InterruptContext)>; 256] =
     [const { AtomicPtr::new(unhandled_panic as _) }; 256];
-
-static USERSPACE_NPE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
-    AtomicPtr::new(unhandled_panic as _);
-static USERSPACE_SOE_HANDLER: AtomicPtr<fn(&InterruptContext)> =
-    AtomicPtr::new(unhandled_panic as _);
-static USERSPACE_UB_HANDLER: AtomicPtr<fn(&InterruptContext)> =
-    AtomicPtr::new(unhandled_panic as _);
-static USERSPACE_STACK_EXPAND_HANDLER: AtomicPtr<fn(&InterruptContext)> =
-    AtomicPtr::new(unhandled_panic as _);
 
 pub struct Idt {
     table: [InterruptDescriptor; 256],
@@ -195,21 +185,25 @@ pub extern "C" fn pop_ctx() {
     )
 }
 
-extern "C" fn global_handler(ctx: *const InterruptContext) {
+extern "C" fn global_handler(ctx: *mut InterruptContext) {
     if ctx.is_null() {
         panic!("Invalid context passed to global interrupt handler")
     }
 
-    let ctx = unsafe { &*ctx };
+    let mut ctx = unsafe { &mut *ctx };
+    let us_bit = ctx.errcode & (1 << 2) != 0;
+    if us_bit {
+        return user_global_handler(ctx);
+    }
 
     unsafe {
-        (mem::transmute::<_, fn(&InterruptContext)>(
+        (mem::transmute::<_, fn(&mut InterruptContext)>(
             HANDLERS[ctx.vector as usize].load(Ordering::Relaxed),
         ))(ctx);
     }
 }
 
-fn unhandled_panic(ctx: &InterruptContext) {
+pub fn unhandled_panic(ctx: &mut InterruptContext) {
     panic!(
         concat!(
             "unhandled interrupt #{} at {:#x}:{:#x}\n",
@@ -255,53 +249,4 @@ fn unhandled_panic(ctx: &InterruptContext) {
 
 pub fn register_handler(index: u8, handler: fn(&mut InterruptContext)) {
     HANDLERS[index as usize].store(handler as _, Ordering::Relaxed);
-}
-
-pub fn page_fault_handler(ctx: &mut InterruptContext) {
-    let us_bit = ctx.errcode & (1 << 2) != 0;
-
-    if !us_bit {
-        unhandled_panic(ctx);
-    }
-
-    enum UserErr {
-        NPE,
-        SOE,
-        UB,
-        GuardPage,
-    }
-
-    let user_err = match ctx.cr2 {
-        0..0x7000 => UserErr::NPE,
-        0x80000..0x402000 => UserErr::SOE,
-        0x402000..0x800000 => UserErr::GuardPage,
-        _ => UserErr::UB,
-    };
-
-    let handler = match user_err {
-        UserErr::NPE => &USERSPACE_NPE_HANDLER,
-        UserErr::SOE => &USERSPACE_SOE_HANDLER,
-        UserErr::UB => &USERSPACE_UB_HANDLER,
-        UserErr::GuardPage => &USERSPACE_STACK_EXPAND_HANDLER,
-    }
-    .load(Ordering::Relaxed);
-
-    unsafe {
-        (mem::transmute::<_, fn(&mut InterruptContext)>(handler))(ctx);
-    }
-}
-
-pub fn register_userspace_npe_handler(handler: fn(&mut InterruptContext)) {
-    USERSPACE_NPE_HANDLER.store(handler as _, Ordering::Relaxed);
-}
-
-pub fn register_userspace_soe_handler(handler: fn(&mut InterruptContext)) {
-    USERSPACE_SOE_HANDLER.store(handler as _, Ordering::Relaxed);
-}
-pub fn register_userspace_ub_handler(handler: fn(&mut InterruptContext)) {
-    USERSPACE_UB_HANDLER.store(handler as _, Ordering::Relaxed);
-}
-
-pub fn register_userspace_stack_endpand_handler(handler: fn(&mut InterruptContext)) {
-    USERSPACE_STACK_EXPAND_HANDLER.store(handler as _, Ordering::Relaxed);
 }

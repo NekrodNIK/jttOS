@@ -1,6 +1,3 @@
-#![no_std]
-#![no_main]
-
 use core::arch::asm;
 use utils::{framebuffer, io::Write, key::Key, textbuffer};
 

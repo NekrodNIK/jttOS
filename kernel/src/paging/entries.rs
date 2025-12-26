@@ -13,6 +13,7 @@ pub type PageDirectory = [PageDirectoryEntry; 1024];
 
 impl PageTableEntry {
     pub fn new(page: *mut Page, present: bool, rw: bool, us: bool) -> Self {
+        debug_assert!(page as u32 & ((1 << 13) - 1) == 0);
         Self(page as u32 & (!0 << 12) | (us as u32) << 2 | (rw as u32) << 1 | (present as u32))
     }
 
@@ -43,16 +44,12 @@ impl PageTableEntry {
 
 impl PageDirectoryEntry {
     pub fn new_4kb(pt: *mut PageTable, present: bool, rw: bool, us: bool) -> Self {
-        Self(
-            (pt as u32) & (!0 << 12)
-                | 0 << 7
-                | (us as u32) << 2
-                | (rw as u32) << 1
-                | (present as u32),
-        )
+        debug_assert!(pt as u32 & ((1 << 13) - 1) == 0);
+        Self(((pt as u32) & (!0 << 12)) | (us as u32) << 2 | (rw as u32) << 1 | (present as u32))
     }
 
     pub fn new_4mb(page: *mut HugePage, present: bool, rw: bool, us: bool) -> Self {
+        debug_assert!(page as u32 & ((1 << 23) - 1) == 0);
         Self(
             (page as u32) & (!0 << 22)
                 | 1 << 7

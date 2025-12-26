@@ -1,5 +1,10 @@
 use crate::{
-    drivers::{pic8259, pit, ps2},
+    TBW,
+    drivers::{
+        pic8259,
+        pit::{self},
+        ps2,
+    },
     interrupts,
 };
 use utils::io::Write;
@@ -21,24 +26,24 @@ impl DeviceManager {
         }
     }
 
-    pub fn init_devices(&self, writter: &mut utils::textbuffer::TextBufferWritter) {
-        writter.set_next_fg(0x00ffff00);
-        writeln!(writter, "{:=^80}", "DEVICES").unwrap();
-        writter.set_next_fg(0x00ffffff);
+    pub fn init_devices(&self) {
+        TBW.borrow_mut().set_next_fg(0x00ffff00);
+        crate::println!("{:=^80}", "DEVICES");
+        TBW.borrow_mut().set_next_fg(0x00ffffff);
 
         self.pic.init(true);
-        crate::info!(writter, "PICs initializated");
+        crate::info!("PICs initializated");
 
         self.ps2keyboard.init();
         interrupts::register_handler(0x21, ps2::PS2Keyboard::int_handler);
         self.pic.enable_device(1);
-        crate::info!(writter, "PS2 controller initializated");
+        crate::info!("PS2 controller initializated");
 
-        self.pit.init(20);
-        crate::info!(writter, "PIT initializated");
+        self.pit.init(10000);
+        crate::info!("PIT initializated");
 
-        writter.set_next_fg(0x00ffff00);
-        writeln!(writter, "{:=^80}", "").unwrap();
-        writter.set_next_fg(0x00ffffff);
+        TBW.borrow_mut().set_next_fg(0x00ffff00);
+        crate::println!("{:=^80}", "");
+        TBW.borrow_mut().set_next_fg(0x00ffffff);
     }
 }

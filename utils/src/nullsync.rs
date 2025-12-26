@@ -1,8 +1,9 @@
 use ::core::cell;
 use ::core::ops::Deref;
+use core::ops::DerefMut;
 
 #[repr(transparent)]
-struct Marker<T>(T);
+pub struct Marker<T>(T);
 
 #[repr(transparent)]
 pub struct LazyCell<T> {
@@ -15,6 +16,12 @@ pub struct RefCell<T> {
 }
 
 unsafe impl<T> Sync for Marker<T> {}
+
+impl<T> Marker<T> {
+    pub const fn new(value: T) -> Self {
+        Self(value)
+    }
+}
 
 impl<T> LazyCell<T> {
     pub const fn new(f: fn() -> T) -> Self {
@@ -32,10 +39,23 @@ impl<T> RefCell<T> {
     }
 }
 
+impl<T> Deref for Marker<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<T> Deref for LazyCell<T> {
     type Target = ::core::cell::LazyCell<T>;
     fn deref(&self) -> &Self::Target {
         &self.data.0
+    }
+}
+
+impl<T> DerefMut for LazyCell<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data.0
     }
 }
 
