@@ -20,10 +20,10 @@ pub const VIRT_START: *mut u8 = 0x800_000 as _;
 
 pub static mut PROCESSES: nullsync::LazyCell<[Process; 4]> = nullsync::LazyCell::new(|| {
     [
-        template_process(0, 0x20000, 0, 0, 2, 2),
-        template_process(1, 0x30000, 1, 0, 2, 2),
-        template_process(2, 0x40000, 0, 1, 2, 2),
-        template_process(3, 0x50000, 1, 1, 2, 2),
+        template_process(0x20000, 0, 0, 2, 2),
+        template_process(0x30000, 1, 0, 2, 2),
+        template_process(0x40000, 0, 1, 2, 2),
+        template_process(0x50000, 1, 1, 2, 2),
     ]
 });
 pub static mut CUR_PROCCESS: usize = 0;
@@ -33,7 +33,6 @@ pub fn get_cur_process() -> &'static mut Process {
 }
 
 pub fn template_process(
-    pid: usize,
     addr: usize,
     x: usize,
     y: usize,
