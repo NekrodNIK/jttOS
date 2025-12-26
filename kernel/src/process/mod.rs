@@ -52,26 +52,25 @@ pub fn template_process(
         height: split_y,
     });
 
-    Process::new(pid, addr as _, TextBufferWritter::new(process_tb))
+    Process::new(addr as _, TextBufferWritter::new(process_tb))
 }
 
 pub struct Process {
-    pub pid: usize,
     pub alive: bool,
     pub tbw: TextBufferWritter,
     pub ctx: InterruptContext,
     pub pd: *mut paging::PageDirectory,
+    pub stack_pte_ind: usize,
 }
 
 impl Process {
-    pub fn new(pid: usize, phys_start: *mut u8, tbw: TextBufferWritter) -> Self {
+    pub fn new(phys_start: *mut u8, tbw: TextBufferWritter) -> Self {
         let pd = paging::init_kernel_paging();
         paging::init_code_pages(pd, phys_start);
 
         let flags = EFlags::new().union(EFlags::IOPL0).union(EFlags::IF);
 
         Self {
-            pid,
             alive: true,
             tbw,
             ctx: InterruptContext {
@@ -97,6 +96,7 @@ impl Process {
                 cr2: 0,
             },
             pd,
+            stack_pte_ind: 1023,
         }
     }
 

@@ -68,7 +68,7 @@ pub fn ub_handler(ctx: &mut InterruptContext) {
 pub fn stack_expand_handler(ctx: &mut InterruptContext) {
     let process = get_cur_process();
     paging::disable_paging();
-    paging::enable_stack_pages(process.pd, ctx.cr2);
+    paging::enable_stack_pages(process.pd, ctx.cr2, &mut process.stack_pte_ind);
     paging::enable_paging(process.pd);
 }
 
