@@ -1,4 +1,5 @@
 # jttOS
+x86 operating system written in Rust
 ```
    _ _   _    ___  ____
   (_) |_| |_ / _ \/ ___|
